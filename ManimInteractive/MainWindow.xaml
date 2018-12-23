@@ -79,6 +79,17 @@
                         <TextBox x:Name="ItemYBox" ToolTip="Shape Y Location"/>
                     </StackPanel>
                 </Fluent:RibbonGroupBox>
+                <Fluent:RibbonGroupBox Header="Shape Style">
+                    <Grid MinWidth="75">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        
+                        <ComboBox x:Name="FillColorSelectBox" ToolTip="Fill Color" Grid.Row="0" SelectionChanged="FillColorSelectBox_SelectionChanged"/>
+                        <Border x:Name="FillColorDisplay" Grid.Row="1" Height="Auto"/>
+                    </Grid>
+                </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
 
             <!--Contextual Tab Groups-->

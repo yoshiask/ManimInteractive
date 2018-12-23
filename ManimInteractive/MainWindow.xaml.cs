@@ -33,8 +33,52 @@ namespace ManimInteractive
             InitializeComponent();
         }
 
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            foreach (KeyValuePair<string, string> pair in ManimHelper.Colors)
+            {
+                FillColorSelectBox.Items.Add(new ComboBoxItem()
+                {
+                    Background = Common.BrushFromHex(pair.Value),
+                    Content = pair.Key
+                });
+            }
+        }
+
         #region Python
-        public const string MANIM_DIR = @"C:\Users\jjask\Documents\manim\";
+        public const string PY_TAB = @"    ";
+        public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom big_ol_pile_of_manim_imports import *\r\n\r\n";
+
+        private string GenerateScene()
+        {
+            string pythonScene = PythonSceneHeader + $"class Default(Scene):\r\n";
+            pythonScene += $"{PY_TAB}def construct(self):\r\n";
+
+            int itemindex = 0;
+            foreach (ViewportItem item in DisplayCanvas.Children)
+            {
+                var shape = item as ManimHelper.IMobject_Shape;
+                if (shape != null)
+                {
+                    pythonScene += $"{PY_TAB}{PY_TAB}{shape.MobjType}{itemindex} = {shape.GetPyInitializer()}\r\n";
+                    itemindex++;
+                }
+            }
+            pythonScene += $"\r\n";
+            itemindex = 0;
+            foreach (ViewportItem item in DisplayCanvas.Children)
+            {
+                var shape = item as ManimHelper.IMobject_Shape;
+                if (shape != null)
+                {
+                    pythonScene += $"{PY_TAB}{PY_TAB}self.play(ShowCreation({shape.MobjType}{itemindex}))\r\n";
+                    itemindex++;
+                }
+            }
+
+            Console.Write(pythonScene);
+            return pythonScene;
+        }
 
         //[PrincipalPermission(SecurityAction.Demand, Role = @"BUILTIN\Administrators")]
         private void run_cmd(string cmd, string args)
@@ -42,7 +86,7 @@ namespace ManimInteractive
             //Process process = new Process();
             ProcessStartInfo startInfo = new ProcessStartInfo();
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            startInfo.WorkingDirectory = MANIM_DIR;
+            startInfo.WorkingDirectory = ManimHelper.MANIM_DIR;
             startInfo.FileName = cmd;
             startInfo.Arguments = "/C " + args;
 
@@ -77,11 +121,6 @@ namespace ManimInteractive
                 }
             }*/
             #endregion
-        }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            //MediaObject.Source = new Uri(@"C:\Users\jjask\Videos\Manim Exports\videos\example_scenes\1440p60\SquareToCircle.mp4");
         }
 
         public static void WriteVideoFromFrames(System.Drawing.Bitmap[] frames, System.Drawing.Size size, string destination, Rational fps)
@@ -161,12 +200,13 @@ namespace ManimInteractive
             }
             else
             {
-                run_cmd("cmd.exe", $"py -3 extract_scene.py example_scenes.py SquareToCircle -pl");
+                File.WriteAllText(System.IO.Path.Combine(ManimHelper.MANIM_DIR, "testing\\exported_scenes.py"), GenerateScene());
+                run_cmd("cmd.exe", "py -3 extract_scene.py testing\\exported_scenes.py Default -pl");
 
                 Player.Stretch = Stretch.Uniform;
                 Player.MediaEnded += Player_LoopMedia;
                 Player.Visibility = Visibility.Visible;
-                Player.Source = new Uri(@"C:\Users\jjask\Videos\Manim Exports\videos\example_scenes\480p15\SquareToCircle.mp4");
+                Player.Source = new Uri(@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\480p15\Default.mp4");
                 IsPreviewing = true;
 
                 PreviewButton.Icon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_16x.png");
@@ -214,36 +254,23 @@ namespace ManimInteractive
         }
         #endregion
 
-        private void DrawRectangle(Viewport view, Rect rect, Brush fill)
-        {
-            var item = new ViewportItem(rect);
-            item.Background = fill;
-            view.Children.Add(item);
-
-            /*MouseDragElementBehavior dragBehavior = new MouseDragElementBehavior
-            {
-                ConstrainToParentBounds = true
-            };
-            dragBehavior.Attach(rect);
-            DisplayCanvas.Children.Add(rect);
-            Canvas.SetTop(rect, ypos);
-            Canvas.SetLeft(rect, xpos);*/
-        }
-
         private void NewRectButton_Click(object sender, RoutedEventArgs e)
         {
-            DrawRectangle(DisplayCanvas, new Rect(0.25, 0.5, 0.33, 0.1), new SolidColorBrush(Color.FromRgb(244, 211, 69)));
+            ManimHelper.Mobject_Square.Draw(DisplayCanvas, new Rect(0.25, 0.5, 0.33, 0.1), "WHITE","YELLOW_E");
         }
 
-        public ViewportItem SelectedVisual;
+        public ManimHelper.IMobject_Shape SelectedVisual;
+        public bool IsLoadingSelected = false;
         private void DisplayCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.OriginalSource.GetType() == typeof(ViewportItem))
+            SelectedVisual = e.OriginalSource as ManimHelper.IMobject_Shape;
+            if (SelectedVisual != null)
             {
-                SelectedVisual = e.OriginalSource as ViewportItem;
+                IsLoadingSelected = true;
                 //SelectedVisual.DrawBorder(DisplayCanvas);
                 drawingGroup.Visibility = Visibility.Visible;
                 UpdateDrawingToolsUI(SelectedVisual);
+                IsLoadingSelected = false;
             }
             else
             {
@@ -257,17 +284,35 @@ namespace ManimInteractive
             {
                 if (SelectedVisual == e.OriginalSource as ViewportItem)
                 {
+                    IsLoadingSelected = true;
                     UpdateDrawingToolsUI(SelectedVisual);
+                    IsLoadingSelected = false;
                 }
             }
         }
 
-        private void UpdateDrawingToolsUI(ViewportItem item)
+        private void UpdateDrawingToolsUI(ManimHelper.IMobject_Shape item)
         {
             ItemHeightBox.Text = Math.Round(item.RelativeRect.Height * DisplayCanvas.ActualHeight).ToString();
             ItemWidthBox.Text = Math.Round(item.RelativeRect.Width * DisplayCanvas.ActualWidth).ToString();
             ItemXBox.Text = Math.Round(item.RelativeRect.X * DisplayCanvas.ActualWidth).ToString();
             ItemYBox.Text = Math.Round(item.RelativeRect.Y * DisplayCanvas.ActualHeight).ToString();
+
+            FillColorSelectBox.SelectedItem = new ComboBoxItem()
+            {
+                Background = Common.BrushFromHex(ManimHelper.Colors[item.Fill]),
+                Content = item.Fill
+            };
+        }
+
+        private void FillColorSelectBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoadingSelected && SelectedVisual != null)
+            {
+                var newColor = (FillColorSelectBox.SelectedItem as ComboBoxItem).Content.ToString();
+                SelectedVisual.Fill = newColor;
+                FillColorDisplay.Background = Common.BrushFromHex(ManimHelper.Colors[newColor]);
+            }
         }
     }
 
@@ -484,8 +529,10 @@ namespace ManimInteractive
     }
     #endregion
 
-    public static class ManimVisualsHelper
+    public static class ManimHelper
     {
+        public const string MANIM_DIR = @"C:\Users\jjask\Documents\manim\";
+
         public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
             { "DARK_BLUE", "#236B8E" },
             { "DARK_BROWN", "#8B4513" },
@@ -543,6 +590,113 @@ namespace ManimInteractive
             { "GREEN_SCREEN", "#00FF00" },
             { "ORANGE", "#FF862F" },
         };
+
+        #region Shapes
+        public abstract class IMobject_Shape : ViewportItem
+        {
+            private string _fill;
+            public string Fill {
+                get {
+                    return _fill;
+                }
+                set {
+                    _fill = value;
+                    Background = Common.BrushFromHex(Colors[_fill]);
+                }
+            }
+            public string Outline;
+            public double OutlineThickness = 0;
+            public abstract string MobjType { get; }
+
+            public abstract string GetPyInitializer();
+        }
+
+        public class Mobject_Rectangle : IMobject_Shape
+        {
+            public override string MobjType {
+                get;
+            } = "Rectangle";
+
+            public static void Draw(Viewport view, Rect rect, string outline, string fill)
+            {
+                var item = new Mobject_Rectangle()
+                {
+                    Fill = fill,
+                    Outline = outline,
+                    RelativeRect = rect,
+                };
+                view.Children.Add(item);
+            }
+            public override string GetPyInitializer()
+            {
+                return $"Rectangle(height={RelativeRect.Height * 8}, width={RelativeRect.Width * 12.4}, color={Outline.ToString()}, fill={Fill.ToString()})";
+            }
+        }
+
+        public class Mobject_Square : IMobject_Shape
+        {
+            public override string MobjType { get; } = "Square";
+
+            public static void Draw(Viewport view, Rect rect, string outline, string fill)
+            {
+                // Force rect to be a square
+                rect.Height = rect.Width;
+                var item = new Mobject_Square()
+                {
+                    Fill = fill,
+                    Outline = outline,
+                    RelativeRect = rect,
+                };
+                view.Children.Add(item);
+            }
+            public override string GetPyInitializer()
+            {
+                return $"Square({RelativeRect.Height * 8}, color={Outline.ToString()}, fill={Fill.ToString()})";
+            }
+        }
+
+        public class Mobject_Circle : IMobject_Shape
+        {
+            public override string MobjType { get; } = "Circle";
+
+            public static void Draw(Viewport view, Rect rect, string outline, string fill)
+            {
+                // Force rect to be a square
+                rect.Height = rect.Width;
+                var item = new Mobject_Circle()
+                {
+                    Fill = fill,
+                    Outline = outline,
+                    RelativeRect = rect,
+                };
+                view.Children.Add(item);
+            }
+            public override string GetPyInitializer()
+            {
+                return $"Circle({RelativeRect.Height * 8}, color={Outline.ToString()}, fill={Fill.ToString()})";
+            }
+        }
+
+        public class Mobject_Ellipse : IMobject_Shape
+        {
+            public override string MobjType { get; } = "Ellipse";
+
+            public static void Draw(Viewport view, Rect rect, string outline, string fill)
+            {
+                var item = new Mobject_Ellipse()
+                {
+                    Fill = fill,
+                    Outline = outline,
+                    RelativeRect = rect,
+                };
+                view.Children.Add(item);
+            }
+            public override string GetPyInitializer()
+            {
+                return $"Ellipse(height={RelativeRect.Height * 8}, width={RelativeRect.Width * 12.4}, color={Outline.ToString()}, fill={Fill.ToString()})";
+            }
+        }
+        #endregion
     }
 
     class AccentColorSet
