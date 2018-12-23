@@ -28,27 +28,14 @@ namespace ManimInteractive
     /// </summary>
     public partial class MainWindow
     {
-        public const string MANIM_DIR = @"C:\Users\jjask\Documents\manim\";
-
         public MainWindow()
         {
             InitializeComponent();
-
-            /*DrawRectangle(DisplayCanvas, new Rectangle
-            {
-                Fill = new SolidColorBrush(Colors.Red),
-                Width = 100,
-                Height = 100
-            }, 170, 52);
-            DrawRectangle(DisplayCanvas, new Rectangle
-            {
-                Fill = new SolidColorBrush(Colors.Blue),
-                Width = 150,
-                Height = 100
-            }, 0, 0);*/
         }
 
-        #region Python/Video
+        #region Python
+        public const string MANIM_DIR = @"C:\Users\jjask\Documents\manim\";
+
         //[PrincipalPermission(SecurityAction.Demand, Role = @"BUILTIN\Administrators")]
         private void run_cmd(string cmd, string args)
         {
@@ -151,7 +138,9 @@ namespace ManimInteractive
                 throw new FileLoadException(PYTHON_NOT_FOUND_MSG);
             }
         }
+        #endregion
 
+        #region Media Playback
         bool IsPreviewing = false;
         private void PreviewButton_Click(object sender, RoutedEventArgs e)
         {
@@ -225,16 +214,60 @@ namespace ManimInteractive
         }
         #endregion
 
-        private void DrawRectangle(Viewport view, Rectangle rect, double xpos, double ypos)
+        private void DrawRectangle(Viewport view, Rect rect, Brush fill)
         {
-            MouseDragElementBehavior dragBehavior = new MouseDragElementBehavior
+            var item = new ViewportItem(rect);
+            item.Background = fill;
+            view.Children.Add(item);
+
+            /*MouseDragElementBehavior dragBehavior = new MouseDragElementBehavior
             {
                 ConstrainToParentBounds = true
             };
             dragBehavior.Attach(rect);
             DisplayCanvas.Children.Add(rect);
             Canvas.SetTop(rect, ypos);
-            Canvas.SetLeft(rect, xpos);
+            Canvas.SetLeft(rect, xpos);*/
+        }
+
+        private void NewRectButton_Click(object sender, RoutedEventArgs e)
+        {
+            DrawRectangle(DisplayCanvas, new Rect(0.25, 0.5, 0.33, 0.1), new SolidColorBrush(Color.FromRgb(244, 211, 69)));
+        }
+
+        public ViewportItem SelectedVisual;
+        private void DisplayCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource.GetType() == typeof(ViewportItem))
+            {
+                SelectedVisual = e.OriginalSource as ViewportItem;
+                //SelectedVisual.DrawBorder(DisplayCanvas);
+                drawingGroup.Visibility = Visibility.Visible;
+                UpdateDrawingToolsUI(SelectedVisual);
+            }
+            else
+            {
+                SelectedVisual = null;
+                drawingGroup.Visibility = Visibility.Collapsed;
+            }
+        }
+        private void DisplayCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource.GetType() == typeof(ViewportItem))
+            {
+                if (SelectedVisual == e.OriginalSource as ViewportItem)
+                {
+                    UpdateDrawingToolsUI(SelectedVisual);
+                }
+            }
+        }
+
+        private void UpdateDrawingToolsUI(ViewportItem item)
+        {
+            ItemHeightBox.Text = Math.Round(item.RelativeRect.Height * DisplayCanvas.ActualHeight).ToString();
+            ItemWidthBox.Text = Math.Round(item.RelativeRect.Width * DisplayCanvas.ActualWidth).ToString();
+            ItemXBox.Text = Math.Round(item.RelativeRect.X * DisplayCanvas.ActualWidth).ToString();
+            ItemYBox.Text = Math.Round(item.RelativeRect.Y * DisplayCanvas.ActualHeight).ToString();
         }
     }
 
@@ -245,15 +278,22 @@ namespace ManimInteractive
             "RelativeRect", typeof(Rect), typeof(Viewport),
             new FrameworkPropertyMetadata(new Rect(), FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsArrange));
 
-        public Rect RelativeRect = new Rect(0, 0, 0.1, 0.1);
+        public Rect RelativeRect = new Rect();
         private bool Dragging = false;
         private Point mouseOffset = new Point();
+
+        public ViewportItem() { }
+        public ViewportItem(Rect rect)
+        {
+            RelativeRect = rect;
+        }
 
         protected override void OnInitialized(EventArgs e)
         {
             base.OnInitialized(e);
 
-            RelativeRect = (Rect)GetValue(RelativeRectProperty);
+            if (RelativeRect == new Rect())
+                RelativeRect = (Rect)GetValue(RelativeRectProperty);
 
             MouseDown += Draggable_MouseDown;
             MouseUp += Draggable_MouseUp;
@@ -304,6 +344,16 @@ namespace ManimInteractive
             Dragging = true;
             mouseOffset = Mouse.GetPosition(this);
             CaptureMouse();
+        }
+
+        public void DrawBorder(Viewport canvas)
+        {
+            Rect bounds = TransformToVisual(canvas).TransformBounds(new Rect(RenderSize));
+            Children.Add(new Border
+            {
+                BorderBrush = Brushes.Red,
+                BorderThickness = new Thickness(10)
+            });
         }
     }
 
@@ -433,6 +483,67 @@ namespace ManimInteractive
         }
     }
     #endregion
+
+    public static class ManimVisualsHelper
+    {
+        public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
+            { "DARK_BLUE", "#236B8E" },
+            { "DARK_BROWN", "#8B4513" },
+            { "LIGHT_BROWN", "#CD853F" },
+            { "BLUE_E", "#1C758A" },
+            { "BLUE_D", "#29ABCA" },
+            { "BLUE_C", "#58C4DD" },
+            { "BLUE_B", "#9CDCEB" },
+            { "BLUE_A", "#C7E9F1" },
+            { "TEAL_E", "#49A88F" },
+            { "TEAL_D", "#55C1A7" },
+            { "TEAL_C", "#5CD0B3" },
+            { "TEAL_B", "#76DDC0" },
+            { "TEAL_A", "#ACEAD7" },
+            { "GREEN_E", "#699C52" },
+            { "GREEN_D", "#77B05D" },
+            { "GREEN_C", "#83C167" },
+            { "GREEN_B", "#A6CF8C" },
+            { "GREEN_A", "#C9E2AE" },
+            { "YELLOW_E", "#E8C11C" },
+            { "YELLOW_D", "#F4D345" },
+            { "YELLOW_C", "#FFFF00" },
+            { "YELLOW_B", "#FFEA94" },
+            { "YELLOW_A", "#FFF1B6" },
+            { "GOLD_E", "#C78D46" },
+            { "GOLD_D", "#E1A158" },
+            { "GOLD_C", "#F0AC5F" },
+            { "GOLD_B", "#F9B775" },
+            { "GOLD_A", "#F7C797" },
+            { "RED_E", "#CF5044" },
+            { "RED_D", "#E65A4C" },
+            { "RED_C", "#FC6255" },
+            { "RED_B", "#FF8080" },
+            { "RED_A", "#F7A1A3" },
+            { "MAROON_E", "#94424F" },
+            { "MAROON_D", "#A24D61" },
+            { "MAROON_C", "#C55F73" },
+            { "MAROON_B", "#EC92AB" },
+            { "MAROON_A", "#ECABC1" },
+            { "PURPLE_E", "#644172" },
+            { "PURPLE_D", "#715582" },
+            { "PURPLE_C", "#9A72AC" },
+            { "PURPLE_B", "#B189C6" },
+            { "PURPLE_A", "#CAA3E8" },
+            { "WHITE", "#FFFFFF" },
+            { "BLACK", "#000000" },
+            { "LIGHT_GRAY", "#BBBBBB" },
+            { "LIGHT_GREY", "#BBBBBB" },
+            { "GRAY", "#888888" },
+            { "GREY", "#888888" },
+            { "DARK_GREY", "#444444" },
+            { "DARK_GRAY", "#444444" },
+            { "GREY_BROWN", "#736357" },
+            { "PINK", "#D147BD" },
+            { "GREEN_SCREEN", "#00FF00" },
+            { "ORANGE", "#FF862F" },
+        };
+    }
 
     class AccentColorSet
     {

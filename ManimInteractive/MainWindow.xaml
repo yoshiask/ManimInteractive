@@ -13,7 +13,12 @@
         Title="Manim Interactive" Height="600" Width="800" WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Loaded="Window_Loaded">
     <Grid x:Name="WindowGrid" Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
-        <Fluent:Ribbon x:Name="MainRibbon" Grid.Row="0" MinHeight="118">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        
+        <Fluent:Ribbon x:Name="MainRibbon" Grid.Row="0">
             <!--Backstage-->
             <Fluent:Ribbon.Menu>
                 <Fluent:Backstage>
@@ -31,10 +36,7 @@
 
             <!--Tabs-->
             <Fluent:RibbonTabItem Header="Home">
-                <Fluent:RibbonGroupBox Header="Testing">
-                    <Fluent:Button Header="Add Text"
-                           Icon="/Assets/Icons/AddTextFile_16x.png"
-                           LargeIcon="/Assets/Icons/AddTextFile_32x.png" />
+                <Fluent:RibbonGroupBox Header="Video">
                     <Fluent:Button x:Name="PreviewButton"
                            Header="Start Preview" 
                            Icon="/Assets/Icons/Run_16x.png"
@@ -60,19 +62,32 @@
                                    IsEnabled="False"/>
                 </Fluent:RibbonGroupBox>
                 <Fluent:RibbonGroupBox Header="Insert">
-                    
+                    <Fluent:Button Header="New Rectangle"
+                           x:Name="NewRectButton"
+                           Icon="/Assets/Icons/AddTextFile_16x.png"
+                           LargeIcon="/Assets/Icons/AddTextFile_32x.png"
+                           Click="NewRectButton_Click"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
             <!--Contextual Tabs-->
-            <Fluent:RibbonTabItem Header="Format" Group="{Binding Source={x:Reference drawingGroup}}"/>
+            <Fluent:RibbonTabItem Header="Format" Group="{Binding Source={x:Reference drawingGroup}}">
+                <Fluent:RibbonGroupBox Header="Position">
+                    <StackPanel MinWidth="75">
+                        <TextBox x:Name="ItemHeightBox" ToolTip="Shape Height"/>
+                        <TextBox x:Name="ItemWidthBox" ToolTip="Shape Width"/>
+                        <TextBox x:Name="ItemXBox" ToolTip="Shape X Location"/>
+                        <TextBox x:Name="ItemYBox" ToolTip="Shape Y Location"/>
+                    </StackPanel>
+                </Fluent:RibbonGroupBox>
+            </Fluent:RibbonTabItem>
 
             <!--Contextual Tab Groups-->
             <Fluent:Ribbon.ContextualGroups>
                 <Fluent:RibbonContextualTabGroup x:Name="drawingGroup"
                                      Header="Drawing Tools" 
                                      Visibility="Collapsed"
-                                     Background="#201f1e" 
-                                     BorderBrush="#201f1e" />
+                                     Background="#F7C797" 
+                                     BorderBrush="#F7C797" />
             </Fluent:Ribbon.ContextualGroups>
 
             <!--StartScreen-->
@@ -100,9 +115,12 @@
                 </Fluent:StartScreen>
             </Fluent:Ribbon.StartScreen>
         </Fluent:Ribbon>
-        <Grid x:Name="MainGrid" Margin="0,118,0,0">
+        
+        <Grid x:Name="MainGrid" Grid.Row="1">
             <Viewbox Stretch="Uniform">
-                <local:Viewport x:Name="DisplayCanvas" Margin="0,0,0,0" Background="Black" Width="2650" Height="1440">
+                <local:Viewport x:Name="DisplayCanvas" Margin="0,0,0,0" Background="Black" Width="2650" Height="1440"
+                                local:ViewportItem.MouseDown="DisplayCanvas_MouseDown"
+                                local:ViewportItem.MouseUp="DisplayCanvas_MouseUp">
                     <!--local:ViewportItem x:Name="TestRect" Background="DarkRed" local:Viewport.RelativeRect="0, 0, 0.2, 0.2"/!-->
                 </local:Viewport>
             </Viewbox>
