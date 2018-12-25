@@ -9,7 +9,8 @@
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
         xmlns:il="http://schemas.microsoft.com/expression/2010/interactions"
         xmlns:Fluent="urn:fluent-ribbon"
-        mc:Ignorable="d"
+                     xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+                     mc:Ignorable="d"
         Title="Manim Interactive" Height="600" Width="800" WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Loaded="Window_Loaded">
     <Grid x:Name="WindowGrid" Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
@@ -73,10 +74,10 @@
             <Fluent:RibbonTabItem Header="Format" Group="{Binding Source={x:Reference drawingGroup}}">
                 <Fluent:RibbonGroupBox Header="Position">
                     <StackPanel MinWidth="75">
-                        <TextBox x:Name="ItemHeightBox" ToolTip="Shape Height"/>
-                        <TextBox x:Name="ItemWidthBox" ToolTip="Shape Width"/>
-                        <TextBox x:Name="ItemXBox" ToolTip="Shape X Location"/>
-                        <TextBox x:Name="ItemYBox" ToolTip="Shape Y Location"/>
+                        <TextBox x:Name="ItemHeightBox" ToolTip="Shape Height" TextChanged="ItemHeightBox_TextChanged"/>
+                        <TextBox x:Name="ItemWidthBox" ToolTip="Shape Width" TextChanged="ItemWidthBox_TextChanged"/>
+                        <TextBox x:Name="ItemXBox" ToolTip="Shape X Location" TextChanged="ItemXBox_TextChanged"/>
+                        <TextBox x:Name="ItemYBox" ToolTip="Shape Y Location" TextChanged="ItemYBox_TextChanged"/>
                     </StackPanel>
                 </Fluent:RibbonGroupBox>
                 <Fluent:RibbonGroupBox Header="Shape Style">

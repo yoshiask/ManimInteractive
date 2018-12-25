@@ -43,16 +43,16 @@ namespace ManimInteractive
                     Content = pair.Key
                 });
             }
+
+            DisplayCanvas.Width = ManimHelper.PixelWidth;
+            DisplayCanvas.Height = ManimHelper.PixelHeight;
         }
 
         #region Python
-        public const string PY_TAB = @"    ";
-        public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom big_ol_pile_of_manim_imports import *\r\n\r\n";
-
         private string GenerateScene()
         {
-            string pythonScene = PythonSceneHeader + $"class Default(Scene):\r\n";
-            pythonScene += $"{PY_TAB}def construct(self):\r\n";
+            string pythonScene = ManimHelper.PythonSceneHeader + $"class Default(Scene):\r\n";
+            pythonScene += $"{ManimHelper.PY_TAB}def construct(self):\r\n";
 
             int itemindex = 0;
             foreach (ViewportItem item in DisplayCanvas.Children)
@@ -60,7 +60,7 @@ namespace ManimInteractive
                 var shape = item as ManimHelper.IMobject_Shape;
                 if (shape != null)
                 {
-                    pythonScene += $"{PY_TAB}{PY_TAB}{shape.MobjType}{itemindex} = {shape.GetPyInitializer()}\r\n";
+                    pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{shape.GetPyInitializer(shape.MobjType + itemindex)}\r\n";
                     itemindex++;
                 }
             }
@@ -71,7 +71,7 @@ namespace ManimInteractive
                 var shape = item as ManimHelper.IMobject_Shape;
                 if (shape != null)
                 {
-                    pythonScene += $"{PY_TAB}{PY_TAB}self.play(ShowCreation({shape.MobjType}{itemindex}))\r\n";
+                    pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}self.play(ShowCreation({shape.MobjType}{itemindex}))\r\n";
                     itemindex++;
                 }
             }
@@ -85,7 +85,7 @@ namespace ManimInteractive
         {
             //Process process = new Process();
             ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            startInfo.WindowStyle = ProcessWindowStyle.Normal; // Change to 'Hidden' for release
             startInfo.WorkingDirectory = ManimHelper.MANIM_DIR;
             startInfo.FileName = cmd;
             startInfo.Arguments = "/C " + args;
@@ -256,7 +256,7 @@ namespace ManimInteractive
 
         private void NewRectButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Square.Draw(DisplayCanvas, new Rect(0.25, 0.5, 0.33, 0.1), "WHITE","YELLOW_E");
+            ManimHelper.Mobject_Rectangle.Draw(DisplayCanvas, new Rect(0.25, 0.5, 0.33, 0.1), "WHITE","YELLOW_E");
         }
 
         public ManimHelper.IMobject_Shape SelectedVisual;
@@ -269,15 +269,23 @@ namespace ManimInteractive
                 IsLoadingSelected = true;
                 //SelectedVisual.DrawBorder(DisplayCanvas);
                 drawingGroup.Visibility = Visibility.Visible;
+                SelectedVisual.DragStateChanged += SelectedVisual_DragStateChanged;
                 UpdateDrawingToolsUI(SelectedVisual);
                 IsLoadingSelected = false;
             }
             else
             {
+                //SelectedVisual.DragStateChanged -= SelectedVisual_DragStateChanged;
                 SelectedVisual = null;
                 drawingGroup.Visibility = Visibility.Collapsed;
             }
         }
+
+        private void SelectedVisual_DragStateChanged(object sender, ViewportItemDragStateChanged e)
+        {
+            UpdateDrawingToolsUI(SelectedVisual);
+        }
+
         private void DisplayCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (e.OriginalSource.GetType() == typeof(ViewportItem))
@@ -314,23 +322,91 @@ namespace ManimInteractive
                 FillColorDisplay.Background = Common.BrushFromHex(ManimHelper.Colors[newColor]);
             }
         }
+        private void ItemXBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoadingSelected && SelectedVisual != null)
+            {
+                if (String.IsNullOrWhiteSpace(ItemXBox.Text))
+                {
+                    ItemXBox.Text = "0";
+                }
+                double NewRelative = Convert.ToDouble(ItemXBox.Text) / DisplayCanvas.Width;
+                SelectedVisual.SetX(NewRelative, DisplayCanvas);
+            }
+        }
+        private void ItemYBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoadingSelected && SelectedVisual != null)
+            {
+                if (String.IsNullOrWhiteSpace(ItemYBox.Text))
+                {
+                    ItemYBox.Text = "0";
+                }
+                double NewRelative = Convert.ToDouble(ItemYBox.Text) / DisplayCanvas.Height;
+                SelectedVisual.SetY(NewRelative, DisplayCanvas);
+            }
+        }
+        private void ItemWidthBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoadingSelected && SelectedVisual != null)
+            {
+                if (String.IsNullOrWhiteSpace(ItemWidthBox.Text))
+                {
+                    ItemWidthBox.Text = "0";
+                }
+                double NewRelative = Convert.ToDouble(ItemWidthBox.Text) / DisplayCanvas.Width;
+                SelectedVisual.SetWidth(NewRelative, DisplayCanvas);
+            }
+        }
+        private void ItemHeightBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoadingSelected && SelectedVisual != null)
+            {
+                if (String.IsNullOrWhiteSpace(ItemHeightBox.Text))
+                {
+                    ItemHeightBox.Text = "0";
+                }
+                double NewRelative = Convert.ToDouble(ItemHeightBox.Text) / DisplayCanvas.Height;
+                SelectedVisual.SetHeight(NewRelative, DisplayCanvas);
+            }
+        }
     }
 
     #region Canvas Addons
+    /// <summary>
+    /// A panel designed for use in a Viewport. Positioning and dimentions are relative to its containing Viewport. Draggable by default.
+    /// </summary>
     public class ViewportItem : Panel
     {
         public static readonly DependencyProperty RelativeRectProperty = DependencyProperty.RegisterAttached(
             "RelativeRect", typeof(Rect), typeof(Viewport),
             new FrameworkPropertyMetadata(new Rect(), FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsArrange));
-
         public Rect RelativeRect = new Rect();
-        private bool Dragging = false;
+
+        public bool IsDraggable;
+        private bool _dragging = false;
+        public bool IsDragging
+        {
+            get {
+                return _dragging;
+            }
+            internal set {
+                bool oldValue = _dragging;
+                _dragging = value;
+
+                DragStateChanged?.Invoke(null, new ViewportItemDragStateChanged { OldState = oldValue, NewState = value });
+            }
+         }
+        public event EventHandler<ViewportItemDragStateChanged> DragStateChanged;
         private Point mouseOffset = new Point();
 
         public ViewportItem() { }
-        public ViewportItem(Rect rect)
+        public ViewportItem(Rect rect, bool isDraggable = true)
         {
             RelativeRect = rect;
+
+            
+            IsDraggable = isDraggable;
         }
 
         protected override void OnInitialized(EventArgs e)
@@ -347,50 +423,54 @@ namespace ManimInteractive
 
         private void Draggable_MouseMove(object sender, MouseEventArgs e)
         {
-                if (IsMouseCaptured)
-                {
-                    Point mouseDelta = Mouse.GetPosition(this);
-                    mouseDelta.Offset(-mouseOffset.X, -mouseOffset.Y);
+            if (IsDraggable && IsMouseCaptured)
+            {
+                IsDragging = true;
+                Point mouseDelta = Mouse.GetPosition(this);
+                mouseDelta.Offset(-mouseOffset.X, -mouseOffset.Y);
 
-                    Margin = new Thickness(
-                        Margin.Left + mouseDelta.X,
-                        Margin.Top + mouseDelta.Y,
-                        Margin.Right - mouseDelta.X,
-                        Margin.Bottom - mouseDelta.Y
-                    );
+                Margin = new Thickness(
+                    Margin.Left + mouseDelta.X,
+                    Margin.Top + mouseDelta.Y,
+                    Margin.Right - mouseDelta.X,
+                    Margin.Bottom - mouseDelta.Y
+                );
             }
         }
 
         private void Draggable_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            // Drop item
-            Dragging = false;
-            ReleaseMouseCapture();
-
-            // Recalculate if in Viewport
-            if (Parent != null)
+            if (IsDraggable)
             {
-                if (Parent.GetType() == typeof(Viewport))
-                {
-                    var view = (Viewport)Parent;
+                // Drop item
+                IsDragging = false;
+                ReleaseMouseCapture();
 
-                    Point AbsLocation = TranslatePoint(new Point(0, 0), view);
-                    RelativeRect.X = AbsLocation.X / view.ActualWidth;
-                    RelativeRect.Y = AbsLocation.Y / view.ActualHeight;
-                    Margin = new Thickness(0);
-                    view.InvalidateArrange();
-                    Console.WriteLine(RelativeRect);
+                // Recalculate if in Viewport
+                if (Parent != null)
+                {
+                    if (Parent.GetType() == typeof(Viewport))
+                    {
+                        RecalculateRelative(Parent as Viewport);
+                        Console.WriteLine(RelativeRect);
+                    }
                 }
             }
         }
 
         private void Draggable_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Dragging = true;
-            mouseOffset = Mouse.GetPosition(this);
-            CaptureMouse();
+            if (IsDraggable)
+            {
+                mouseOffset = Mouse.GetPosition(this);
+                CaptureMouse();
+            }
         }
 
+        /// <summary>
+        /// Draws a red border with thickness 10 around the object
+        /// </summary>
+        /// <param name="canvas">The containing Viewport</param>
         public void DrawBorder(Viewport canvas)
         {
             Rect bounds = TransformToVisual(canvas).TransformBounds(new Rect(RenderSize));
@@ -400,6 +480,65 @@ namespace ManimInteractive
                 BorderThickness = new Thickness(10)
             });
         }
+
+        /// <summary>
+        /// Moves the item to the specified position
+        /// </summary>
+        /// <param name="vector">Relative change</param>
+        /// <param name="view">The containing view</param>
+        public void MoveToLocation(Point vector, Viewport view)
+        {
+            RelativeRect.X = vector.X;
+            RelativeRect.Y = vector.Y;
+            view.InvalidateArrange();
+        }
+
+        public void SetX(Double NewX, Viewport view)
+        {
+            MoveToLocation(new Point(NewX, RelativeRect.Y), view);
+        }
+        public void SetY(Double NewY, Viewport view)
+        {
+            MoveToLocation(new Point(RelativeRect.X, NewY), view);
+        }
+        public void SetWidth(Double NewWidth, Viewport view)
+        {
+            RelativeRect.Width = NewWidth;
+            view.InvalidateArrange();
+        }
+        public void SetHeight(Double NewHeight, Viewport view)
+        {
+            RelativeRect.Height = NewHeight;
+            view.InvalidateArrange();
+        }
+
+        /// <summary>
+        /// Recalculates the relative location according to the specified Viewport. Useful for resetting Margin offsets but keeping translation.
+        /// </summary>
+        /// <param name="view">The containing Viewport</param>
+        private void RecalculateRelative(Viewport view, bool ResetMargin = true)
+        {
+            Point AbsLocation = TranslatePoint(new Point(0, 0), view);
+            RelativeRect.X = AbsLocation.X / view.ActualWidth;
+            RelativeRect.Y = AbsLocation.Y / view.ActualHeight;
+            if(ResetMargin)
+                Margin = new Thickness(0);
+
+            // RelativeRect updated with new calculations, now force the containing view to rearrange
+            view.InvalidateArrange();
+        }
+    }
+    public class ViewportItemDragStateChanged : EventArgs
+    {
+        /// <summary>
+        /// True if was previously dragging
+        /// </summary>
+        public bool OldState { get; set; }
+
+        /// <summary>
+        /// True if started dragging
+        /// </summary>
+        public bool NewState { get; set; }
     }
 
     public class Viewport : Canvas
@@ -532,6 +671,14 @@ namespace ManimInteractive
     public static class ManimHelper
     {
         public const string MANIM_DIR = @"C:\Users\jjask\Documents\manim\";
+        public const string PY_TAB = @"    ";
+        public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom big_ol_pile_of_manim_imports import *\r\n\r\n";
+
+        public const int PixelHeight = 1440;
+        public const int PixelWidth = 2560;
+        public const double FrameHeight = 8;
+        public const double FrameWidth = (8 * PixelWidth / PixelHeight);
+        public static readonly Point FrameOrigin = new Point(FrameWidth / 2, FrameHeight / 2);
 
         public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
             { "DARK_BLUE", "#236B8E" },
@@ -608,7 +755,24 @@ namespace ManimInteractive
             public double OutlineThickness = 0;
             public abstract string MobjType { get; }
 
-            public abstract string GetPyInitializer();
+            public abstract string GetPyInitializer(string name);
+
+            public static string CalculateXPosition(double X)
+            {
+                double DistanceFromCenter = X - .5;
+                double Shift = Math.Abs(DistanceFromCenter) * (FrameWidth / 2);
+                string result = Shift.ToString() + "*RIGHT";
+
+                return result;
+            }
+            public static string CalculateYPosition(double Y)
+            {
+                double DistanceFromCenter = Y - .5;
+                double Shift = DistanceFromCenter * (FrameHeight / 2);
+                string result = Shift.ToString() + "*DOWN";
+
+                return result;
+            }
         }
 
         public class Mobject_Rectangle : IMobject_Shape
@@ -624,76 +788,23 @@ namespace ManimInteractive
                     Fill = fill,
                     Outline = outline,
                     RelativeRect = rect,
+                    IsDraggable = true,
                 };
                 view.Children.Add(item);
             }
-            public override string GetPyInitializer()
+            public override string GetPyInitializer(string name)
             {
-                return $"Rectangle(height={RelativeRect.Height * 8}, width={RelativeRect.Width * 12.4}, color={Outline.ToString()}, fill={Fill.ToString()})";
-            }
-        }
+                string init = $"{name} = Rectangle()\r\n";
 
-        public class Mobject_Square : IMobject_Shape
-        {
-            public override string MobjType { get; } = "Square";
+                init += $"{PY_TAB}{PY_TAB}{name}.set_fill({Fill}, opacity=1.0)\r\n";
+                //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
 
-            public static void Draw(Viewport view, Rect rect, string outline, string fill)
-            {
-                // Force rect to be a square
-                rect.Height = rect.Width;
-                var item = new Mobject_Square()
-                {
-                    Fill = fill,
-                    Outline = outline,
-                    RelativeRect = rect,
-                };
-                view.Children.Add(item);
-            }
-            public override string GetPyInitializer()
-            {
-                return $"Square({RelativeRect.Height * 8}, color={Outline.ToString()}, fill={Fill.ToString()})";
-            }
-        }
+                init += $"{PY_TAB}{PY_TAB}{name}.set_height({RelativeRect.Height * FrameHeight})\r\n";
+                init += $"{PY_TAB}{PY_TAB}{name}.stretch_to_fit_width({RelativeRect.Width * FrameWidth})\r\n";
 
-        public class Mobject_Circle : IMobject_Shape
-        {
-            public override string MobjType { get; } = "Circle";
-
-            public static void Draw(Viewport view, Rect rect, string outline, string fill)
-            {
-                // Force rect to be a square
-                rect.Height = rect.Width;
-                var item = new Mobject_Circle()
-                {
-                    Fill = fill,
-                    Outline = outline,
-                    RelativeRect = rect,
-                };
-                view.Children.Add(item);
-            }
-            public override string GetPyInitializer()
-            {
-                return $"Circle({RelativeRect.Height * 8}, color={Outline.ToString()}, fill={Fill.ToString()})";
-            }
-        }
-
-        public class Mobject_Ellipse : IMobject_Shape
-        {
-            public override string MobjType { get; } = "Ellipse";
-
-            public static void Draw(Viewport view, Rect rect, string outline, string fill)
-            {
-                var item = new Mobject_Ellipse()
-                {
-                    Fill = fill,
-                    Outline = outline,
-                    RelativeRect = rect,
-                };
-                view.Children.Add(item);
-            }
-            public override string GetPyInitializer()
-            {
-                return $"Ellipse(height={RelativeRect.Height * 8}, width={RelativeRect.Width * 12.4}, color={Outline.ToString()}, fill={Fill.ToString()})";
+                // TODO: Calculate vectors for positioning
+                init += $"{PY_TAB}{PY_TAB}{name}.shift({CalculateXPosition(RelativeRect.X)} + {CalculateYPosition(RelativeRect.Y)})";
+                return init;
             }
         }
         #endregion
