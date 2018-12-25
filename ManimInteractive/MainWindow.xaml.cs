@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -14,6 +15,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using Accord.Collections;
 using Accord.Math;
 using Accord.Video.FFMPEG;
 using IronPython.Hosting;
@@ -256,29 +258,37 @@ namespace ManimInteractive
 
         private void NewRectButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Rectangle.Draw(DisplayCanvas, new Rect(0.25, 0.5, 0.33, 0.1), "WHITE","YELLOW_E");
+            ManimHelper.Mobject_Rectangle.Draw(DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE","YELLOW_E");
         }
 
         public ManimHelper.IMobject_Shape SelectedVisual;
         public bool IsLoadingSelected = false;
         private void DisplayCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            SelectedVisual = e.OriginalSource as ManimHelper.IMobject_Shape;
-            if (SelectedVisual != null)
+            if (e.OriginalSource is ManimHelper.IMobject_Shape)
             {
-                IsLoadingSelected = true;
-                //SelectedVisual.DrawBorder(DisplayCanvas);
-                drawingGroup.Visibility = Visibility.Visible;
-                SelectedVisual.DragStateChanged += SelectedVisual_DragStateChanged;
-                UpdateDrawingToolsUI(SelectedVisual);
-                IsLoadingSelected = false;
+                SelectMobject(e.OriginalSource as ManimHelper.IMobject_Shape);
             }
             else
             {
-                //SelectedVisual.DragStateChanged -= SelectedVisual_DragStateChanged;
-                SelectedVisual = null;
-                drawingGroup.Visibility = Visibility.Collapsed;
+                Deselect();
             }
+        }
+        private void SelectMobject(ManimHelper.IMobject_Shape shape)
+        {
+            SelectedVisual = shape;
+            IsLoadingSelected = true;
+            //SelectedVisual.DrawBorder(DisplayCanvas);
+            drawingGroup.Visibility = Visibility.Visible;
+            SelectedVisual.DragStateChanged += SelectedVisual_DragStateChanged;
+            UpdateDrawingToolsUI(SelectedVisual);
+            IsLoadingSelected = false;
+        }
+        private void Deselect()
+        {
+            //SelectedVisual.DragStateChanged -= SelectedVisual_DragStateChanged;
+            SelectedVisual = null;
+            drawingGroup.Visibility = Visibility.Collapsed;
         }
 
         private void SelectedVisual_DragStateChanged(object sender, ViewportItemDragStateChanged e)
@@ -301,16 +311,15 @@ namespace ManimInteractive
 
         private void UpdateDrawingToolsUI(ManimHelper.IMobject_Shape item)
         {
-            ItemHeightBox.Text = Math.Round(item.RelativeRect.Height * DisplayCanvas.ActualHeight).ToString();
-            ItemWidthBox.Text = Math.Round(item.RelativeRect.Width * DisplayCanvas.ActualWidth).ToString();
-            ItemXBox.Text = Math.Round(item.RelativeRect.X * DisplayCanvas.ActualWidth).ToString();
-            ItemYBox.Text = Math.Round(item.RelativeRect.Y * DisplayCanvas.ActualHeight).ToString();
-
-            FillColorSelectBox.SelectedItem = new ComboBoxItem()
+            if (item != null)
             {
-                Background = Common.BrushFromHex(ManimHelper.Colors[item.Fill]),
-                Content = item.Fill
-            };
+                ItemHeightBox.Text = Math.Round(item.RelativeRect.Height * DisplayCanvas.ActualHeight).ToString();
+                ItemWidthBox.Text = Math.Round(item.RelativeRect.Width * DisplayCanvas.ActualWidth).ToString();
+                ItemXBox.Text = Math.Round(item.RelativeRect.X * DisplayCanvas.ActualWidth).ToString();
+                ItemYBox.Text = Math.Round(item.RelativeRect.Y * DisplayCanvas.ActualHeight).ToString();
+
+                FillColorSelectBox.SelectedIndex = ManimHelper.ColorsByName.IndexOf(item.Fill);
+            }
         }
 
         private void FillColorSelectBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -378,10 +387,12 @@ namespace ManimInteractive
     /// </summary>
     public class ViewportItem : Panel
     {
+        #region Properties
         public static readonly DependencyProperty RelativeRectProperty = DependencyProperty.RegisterAttached(
             "RelativeRect", typeof(Rect), typeof(Viewport),
             new FrameworkPropertyMetadata(new Rect(), FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsArrange));
         public Rect RelativeRect = new Rect();
+        // TODO: public bool IsOriginCenterOfMass;
 
         public bool IsDraggable;
         private bool _dragging = false;
@@ -399,13 +410,12 @@ namespace ManimInteractive
          }
         public event EventHandler<ViewportItemDragStateChanged> DragStateChanged;
         private Point mouseOffset = new Point();
+        #endregion
 
         public ViewportItem() { }
         public ViewportItem(Rect rect, bool isDraggable = true)
         {
             RelativeRect = rect;
-
-            
             IsDraggable = isDraggable;
         }
 
@@ -429,12 +439,23 @@ namespace ManimInteractive
                 Point mouseDelta = Mouse.GetPosition(this);
                 mouseDelta.Offset(-mouseOffset.X, -mouseOffset.Y);
 
-                Margin = new Thickness(
+                // Recalculate if in Viewport
+                if (Parent != null)
+                {
+                    var view = Parent as Viewport;
+                    if (view != null)
+                    {
+                        RelativeRect.X += (mouseDelta.X / view.ActualWidth);
+                        RelativeRect.Y += (mouseDelta.Y / view.ActualHeight);
+                    }
+                }
+
+                /*Margin = new Thickness(
                     Margin.Left + mouseDelta.X,
                     Margin.Top + mouseDelta.Y,
                     Margin.Right - mouseDelta.X,
                     Margin.Bottom - mouseDelta.Y
-                );
+                );*/
             }
         }
 
@@ -449,7 +470,7 @@ namespace ManimInteractive
                 // Recalculate if in Viewport
                 if (Parent != null)
                 {
-                    if (Parent.GetType() == typeof(Viewport))
+                    if (Parent is Viewport)
                     {
                         RecalculateRelative(Parent as Viewport);
                         Console.WriteLine(RelativeRect);
@@ -519,8 +540,8 @@ namespace ManimInteractive
         private void RecalculateRelative(Viewport view, bool ResetMargin = true)
         {
             Point AbsLocation = TranslatePoint(new Point(0, 0), view);
-            RelativeRect.X = AbsLocation.X / view.ActualWidth;
-            RelativeRect.Y = AbsLocation.Y / view.ActualHeight;
+            RelativeRect.X = (AbsLocation.X / view.ActualWidth) + (RelativeRect.Width / 2);
+            RelativeRect.Y = (AbsLocation.Y / view.ActualHeight) + (RelativeRect.Height / 2);
             if(ResetMargin)
                 Margin = new Thickness(0);
 
@@ -577,8 +598,8 @@ namespace ManimInteractive
         {
             foreach (ViewportItem element in InternalChildren)
             {
-                double newX = element.RelativeRect.X * finalSize.Width;
-                double newY = element.RelativeRect.Y * finalSize.Height;
+                double newX = (element.RelativeRect.X * finalSize.Width) - (element.ActualWidth / 2);
+                double newY = (element.RelativeRect.Y * finalSize.Height) - (element.ActualHeight / 2);
 
                 element.Arrange(new Rect(
                     newX,
@@ -737,6 +758,64 @@ namespace ManimInteractive
             { "GREEN_SCREEN", "#00FF00" },
             { "ORANGE", "#FF862F" },
         };
+        public static readonly List<string> ColorsByName = new List<string>()
+        {
+            "DARK_BLUE",
+            "DARK_BROWN",
+            "LIGHT_BROWN",
+            "BLUE_E",
+            "BLUE_D",
+            "BLUE_C",
+            "BLUE_B",
+            "BLUE_A",
+            "TEAL_E",
+            "TEAL_D",
+            "TEAL_C",
+            "TEAL_B",
+            "TEAL_A",
+            "GREEN_E",
+            "GREEN_D",
+            "GREEN_C",
+            "GREEN_B",
+            "GREEN_A",
+            "YELLOW_E",
+            "YELLOW_D",
+            "YELLOW_C",
+            "YELLOW_B",
+            "YELLOW_A",
+            "GOLD_E",
+            "GOLD_D",
+            "GOLD_C",
+            "GOLD_B",
+            "GOLD_A",
+            "RED_E",
+            "RED_D",
+            "RED_C",
+            "RED_B",
+            "RED_A",
+            "MAROON_E",
+            "MAROON_D",
+            "MAROON_C",
+            "MAROON_B",
+            "MAROON_A",
+            "PURPLE_E",
+            "PURPLE_D",
+            "PURPLE_C",
+            "PURPLE_B",
+            "PURPLE_A",
+            "WHITE",
+            "BLACK",
+            "LIGHT_GRAY",
+            "LIGHT_GREY",
+            "GRAY",
+            "GREY",
+            "DARK_GREY",
+            "DARK_GRAY",
+            "GREY_BROWN",
+            "PINK",
+            "GREEN_SCREEN",
+            "ORANGE",
+        };
 
         #region Shapes
         public abstract class IMobject_Shape : ViewportItem
@@ -760,16 +839,32 @@ namespace ManimInteractive
             public static string CalculateXPosition(double X)
             {
                 double DistanceFromCenter = X - .5;
-                double Shift = Math.Abs(DistanceFromCenter) * (FrameWidth / 2);
-                string result = Shift.ToString() + "*RIGHT";
+                double Shift = Math.Abs(DistanceFromCenter) * (FrameWidth / 1);
+                string result = Shift.ToString();
+                if (DistanceFromCenter < 0)
+                {
+                    result += "*LEFT";
+                }
+                else
+                {
+                    result += "*RIGHT";
+                }
 
                 return result;
             }
             public static string CalculateYPosition(double Y)
             {
                 double DistanceFromCenter = Y - .5;
-                double Shift = DistanceFromCenter * (FrameHeight / 2);
-                string result = Shift.ToString() + "*DOWN";
+                double Shift = Math.Abs(DistanceFromCenter) * (FrameHeight / 1);
+                string result = Shift.ToString();
+                if (DistanceFromCenter < 0)
+                {
+                    result += "*UP";
+                }
+                else
+                {
+                    result += "*DOWN";
+                }
 
                 return result;
             }
