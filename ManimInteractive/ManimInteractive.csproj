@@ -189,7 +189,13 @@
     <Resource Include="Assets\Icons\Save_16xMD.png" />
     <Resource Include="Assets\Icons\Stop_16x.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Resource Include="Assets\Icons\Circle_16x.png" />
+    <Resource Include="Assets\Icons\Morph_16x.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\Icons\NewCircle_16x.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Accord.3.8.2-alpha\build\Accord.targets" Condition="Exists('..\packages\Accord.3.8.2-alpha\build\Accord.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

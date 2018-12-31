@@ -68,6 +68,11 @@
                            Icon="/Assets/Icons/AddTextFile_16x.png"
                            LargeIcon="/Assets/Icons/AddTextFile_32x.png"
                            Click="NewRectButton_Click"/>
+                    <Fluent:Button Header="New Ellipse"
+                           x:Name="NewCircleButton"
+                           Icon="/Assets/Icons/NewCircle_16x.png"
+                           LargeIcon="/Assets/Icons/NewCircle_16x.png"
+                           Click="NewEllipseButton_Click"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
             <!--Contextual Tabs-->
@@ -130,11 +135,11 @@
         
         <Grid x:Name="MainGrid" Grid.Row="1" ClipToBounds="True">
             <Viewbox Stretch="Uniform">
-                <local:Viewport x:Name="DisplayCanvas" Margin="0,0,0,0" Background="Black" Width="2650" Height="1440"
+                <local:RelativeLayoutPanel x:Name="DisplayCanvas" Margin="0,0,0,0" Background="Black" Width="2650" Height="1440"
                                 local:ViewportItem.MouseDown="DisplayCanvas_MouseDown"
                                 local:ViewportItem.MouseUp="DisplayCanvas_MouseUp">
-                    <!--local:ViewportItem x:Name="TestRect" local:Viewport.RelativeRect="0.5, 0.5, 0.2, 0.2"/!-->
-                </local:Viewport>
+                    <!--Ellipse Fill="BlueViolet" local:RelativeLayoutPanel.RelativeRect="0.5, 0.5, 0.2, 0.2"/!-->
+                </local:RelativeLayoutPanel> 
             </Viewbox>
             <mpv:MediaElementWrapper x:Name="Player" Visibility="Collapsed"/>
         </Grid>
