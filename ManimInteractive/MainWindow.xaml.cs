@@ -73,7 +73,7 @@ namespace ManimInteractive
                 var shape = item as ManimHelper.IMobject_Shape;
                 if (shape != null)
                 {
-                    pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}self.play(ShowCreation({shape.MobjType}{itemindex}))\r\n";
+                    pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}self.play(ShowCreation({shape.Name}))\r\n";
                     itemindex++;
                 }
             }
@@ -203,7 +203,7 @@ namespace ManimInteractive
             else
             {
                 File.WriteAllText(System.IO.Path.Combine(ManimHelper.MANIM_DIR, "testing\\exported_scenes.py"), GenerateScene());
-                run_cmd("cmd.exe", "py -3 extract_scene.py testing\\exported_scenes.py Default -pl");
+                run_cmd("cmd.exe", @"py -3 extract_scene.py testing\exported_scenes.py Default -pl");
 
                 Player.Stretch = Stretch.Uniform;
                 Player.MediaEnded += Player_LoopMedia;
@@ -262,15 +262,7 @@ namespace ManimInteractive
         }
         private void NewEllipseButton_Click(object sender, RoutedEventArgs e)
         {
-            //ManimHelper.Mobject_Ellipse.Draw(DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E");
-            //ViewportItem panel = new ViewportItem(new Rect(0.5, 0.5, 0.2, 0.2));
-            //panel.AddUIChild(new Rect(1.0, 1.0, 1.0, 1.0), new Ellipse());
-            ManimHelper.Mobject_Ellipse.Draw(DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_A");
-            /*var panel = new Ellipse() {
-                Fill = Common.BrushFromHex(ManimHelper.Colors["YELLOW_E"]),
-            };
-            RelativeLayoutPanel.SetRelativeRect(panel, new Rect(0.5, 0.5, 0.2, 0.2));
-            DisplayCanvas.Children.Add(panel);*/
+            ManimHelper.Mobject_Ellipse.Draw("TestEllipse", DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E");
         }
 
         public ManimHelper.IMobject_Shape SelectedVisual;
@@ -787,77 +779,12 @@ namespace ManimInteractive
             { "GREEN_SCREEN", "#00FF00" },
             { "ORANGE", "#FF862F" },
         };
-        public static readonly List<string> ColorsByName = new List<string>()
-        {
-            "DARK_BLUE",
-            "DARK_BROWN",
-            "LIGHT_BROWN",
-            "BLUE_E",
-            "BLUE_D",
-            "BLUE_C",
-            "BLUE_B",
-            "BLUE_A",
-            "TEAL_E",
-            "TEAL_D",
-            "TEAL_C",
-            "TEAL_B",
-            "TEAL_A",
-            "GREEN_E",
-            "GREEN_D",
-            "GREEN_C",
-            "GREEN_B",
-            "GREEN_A",
-            "YELLOW_E",
-            "YELLOW_D",
-            "YELLOW_C",
-            "YELLOW_B",
-            "YELLOW_A",
-            "GOLD_E",
-            "GOLD_D",
-            "GOLD_C",
-            "GOLD_B",
-            "GOLD_A",
-            "RED_E",
-            "RED_D",
-            "RED_C",
-            "RED_B",
-            "RED_A",
-            "MAROON_E",
-            "MAROON_D",
-            "MAROON_C",
-            "MAROON_B",
-            "MAROON_A",
-            "PURPLE_E",
-            "PURPLE_D",
-            "PURPLE_C",
-            "PURPLE_B",
-            "PURPLE_A",
-            "WHITE",
-            "BLACK",
-            "LIGHT_GRAY",
-            "LIGHT_GREY",
-            "GRAY",
-            "GREY",
-            "DARK_GREY",
-            "DARK_GRAY",
-            "GREY_BROWN",
-            "PINK",
-            "GREEN_SCREEN",
-            "ORANGE",
-        };
 
         #region Shapes
         public abstract class IMobject_Shape : Draggable
         {
-            private string _fill;
-            public string Fill {
-                get {
-                    return _fill;
-                }
-                set {
-                    _fill = value;
-                    Background = Common.BrushFromHex(Colors[_fill]);
-                }
+            public abstract string Fill {
+                get; set;
             }
             public string Outline;
             public double OutlineThickness = 0;
@@ -901,6 +828,16 @@ namespace ManimInteractive
 
         public class Mobject_Rectangle : IMobject_Shape
         {
+            private string _fill;
+            public override string Fill {
+                get {
+                    return _fill;
+                }
+                set {
+                    _fill = value;
+                    Background = Common.BrushFromHex(Colors[_fill]);
+                }
+            }
             public override string MobjType {
                 get;
             } = "Rectangle";
@@ -939,31 +876,52 @@ namespace ManimInteractive
 
         public class Mobject_Ellipse : IMobject_Shape
         {
+            private string _fill;
+            public override string Fill
+            {
+                get {
+                    return _fill;
+                }
+                set {
+                    _fill = value;
+                    InternalEllipse.Fill = Common.BrushFromHex(Colors[_fill]);
+                }
+            }
             public override string MobjType {
                 get;
             } = "Ellipse";
+            private Ellipse InternalEllipse;
 
-            public static void Draw(Panel view, Rect rect, string outline, string fill)
+            public static void Draw(string name, Panel view, Rect rect, string outline, string fill)
             {
                 var ellipse = new Ellipse()
                 {
                     Fill = Common.BrushFromHex(Colors[fill]),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    IsHitTestVisible = false
                 };
-                SetRelativeRect(ellipse, rect);
                 var item = new Mobject_Ellipse()
                 {
+                    Name = name,
                     Children =
                     {
                         ellipse
                     },
                     IsDraggable = true,
-                    IsHitTestVisible = false,
+                    IsHitTestVisible = true,
+                    Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    InternalEllipse = ellipse,
                 };
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
             }
-            public override string GetPyInitializer(string name)
+            public override string GetPyInitializer(string defaultName)
             {
+                string name = Name;
+                if (String.IsNullOrWhiteSpace(Name))
+                    name = defaultName;
+
                 string init = $"{name} = Ellipse()\r\n";
 
                 init += $"{PY_TAB}{PY_TAB}{name}.set_fill({Fill}, opacity=1.0)\r\n";
@@ -1203,6 +1161,19 @@ namespace ManimInteractive
         public static Rect GetRelativeRect(UIElement element)
         {
             return RelativeLayoutPanel.GetRelativeRect(element);
+        }
+
+        protected override Size ArrangeOverride(Size finalSize)
+        {
+            if (Children.Count == 1)
+            {
+                var Child = Children[0];
+                var rect = new Rect(0, 0, finalSize.Width, finalSize.Height);
+
+                Child.Arrange(rect);
+            }
+
+            return finalSize;
         }
     }
 
