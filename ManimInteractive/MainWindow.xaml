@@ -11,6 +11,7 @@
         xmlns:Fluent="urn:fluent-ribbon"
                      xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
                      mc:Ignorable="d"
+        Icon="/Assets/Icons/3b1b_logo.png"
         Title="Manim Interactive" Height="600" Width="800" WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Loaded="Window_Loaded">
     <Grid x:Name="WindowGrid" Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
@@ -24,13 +25,24 @@
             <Fluent:Ribbon.Menu>
                 <Fluent:Backstage>
                     <Fluent:BackstageTabControl>
-                        <Fluent:BackstageTabItem Header="New"/>
-                        <Fluent:BackstageTabItem Header="Export">
+                        <!--Fluent:BackstageTabItem Header="New"/-->
+                        <!--Fluent:BackstageTabItem Header="Export">
                             <Grid>
 
                             </Grid>
+                        </Fluent:BackstageTabItem!-->
+                        <Fluent:BackstageTabItem Header="Settings">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="ManimLocationBox" Text="Manim not found." Foreground="Red" Loaded="ManimLocationBox_Loaded" FontSize="14" Padding="5,0" />
+                                    <Fluent:Button Header="Locate Manim" 
+                                        Icon="/Assets/Icons/Find_16x.png"
+                                        LargeIcon="/Assets/Icons/Find_32x.png" 
+                                        Click="LocateManimButton_Click"/>
+                                </StackPanel>
+                                
+                            </StackPanel>
                         </Fluent:BackstageTabItem>
-                        <Fluent:Button Header="Blue"/>
                     </Fluent:BackstageTabControl>
                 </Fluent:Backstage>
             </Fluent:Ribbon.Menu>
@@ -44,8 +56,8 @@
                            LargeIcon="/Assets/Icons/Run_32x.png" 
                                    Click="PreviewButton_Click"/>
                     <Fluent:Button Header="Render" 
-                           Icon="/Assets/Icons/Save_16xMD.png"
-                           LargeIcon="/Assets/Icons/Save_32xMD.png" 
+                           Icon="/Assets/Icons/RenderVideo_16x.png"
+                           LargeIcon="/Assets/Icons/RenderVideo_32x.png" 
                                    Click="RenderButton_Click"/>
                 </Fluent:RibbonGroupBox>
                 <Fluent:RibbonGroupBox Header="Playback">
@@ -65,13 +77,13 @@
                 <Fluent:RibbonGroupBox Header="Insert">
                     <Fluent:Button Header="New Rectangle"
                            x:Name="NewRectButton"
-                           Icon="/Assets/Icons/AddTextFile_16x.png"
-                           LargeIcon="/Assets/Icons/AddTextFile_32x.png"
+                           Icon="/Assets/Icons/Rectangle_16x.png"
+                           LargeIcon="/Assets/Icons/Rectangle_32x.png"
                            Click="NewRectButton_Click"/>
                     <Fluent:Button Header="New Ellipse"
                            x:Name="NewCircleButton"
-                           Icon="/Assets/Icons/NewCircle_16x.png"
-                           LargeIcon="/Assets/Icons/NewCircle_16x.png"
+                           Icon="/Assets/Icons/Circle_16x.png"
+                           LargeIcon="/Assets/Icons/Circle_32x.png"
                            Click="NewEllipseButton_Click"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
@@ -91,10 +103,30 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        
+
                         <ComboBox x:Name="FillColorSelectBox" ToolTip="Fill Color" Grid.Row="0" SelectionChanged="FillColorSelectBox_SelectionChanged"/>
-                        <Border x:Name="FillColorDisplay" Grid.Row="1" Height="Auto"/>
+                        <!--Fluent:DropDownButton
+                                   Icon="/Assets/Icons/FillColor_16x.png"
+                                   LargeIcon="/Assets/Icons/FillColor_32x.png"
+                                   Header="Fill Color">
+                            <Fluent:Gallery x:Name="FillColorSelectBox"
+                                   SelectionChanged="FillColorSelectBox_SelectionChanged"
+                                   MaxItemsInRow="5"/>
+                        </Fluent:DropDownButton!-->
+
+                        <Border x:Name="FillColorDisplay" Grid.Row="1" Height="Auto" MinHeight="50" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                     </Grid>
+                </Fluent:RibbonGroupBox>
+                <Fluent:RibbonGroupBox Header="Arrange">
+                    <Fluent:Button x:Name="DeleteSelectedButton" Header="Delete" Click="DeleteSelectedButton_Click"
+                                   Icon="/Assets/Icons/Delete_16x.png"
+                                   LargeIcon="/Assets/Icons/Delete_32x.png"/>
+                    <Fluent:Button x:Name="BringForwardButton" Header="Bring Forward" Click="BringForwardButton_Click"
+                                   Icon="/Assets/Icons/BringForward_16x.png"
+                                   LargeIcon="/Assets/Icons/BringForward_32x.png"/>
+                    <Fluent:Button x:Name="SendBackwardButton" Header="Send Backward" Click="SendBackwardButton_Click"
+                                   Icon="/Assets/Icons/SendBackward_16x.png"
+                                   LargeIcon="/Assets/Icons/SendBackward_32x.png"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
 
@@ -136,10 +168,8 @@
         <Grid x:Name="MainGrid" Grid.Row="1" ClipToBounds="True">
             <Viewbox Stretch="Uniform">
                 <local:RelativeLayoutPanel x:Name="DisplayCanvas" Margin="0,0,0,0" Background="Black" Width="2650" Height="1440"
-                                local:ViewportItem.MouseDown="DisplayCanvas_MouseDown"
-                                local:ViewportItem.MouseUp="DisplayCanvas_MouseUp">
-                    <!--Ellipse Fill="BlueViolet" local:RelativeLayoutPanel.RelativeRect="0.5, 0.5, 0.2, 0.2"/!-->
-                </local:RelativeLayoutPanel> 
+                                local:Draggable.MouseDown="DisplayCanvas_MouseDown"
+                                local:Draggable.MouseUp="DisplayCanvas_MouseUp"/>
             </Viewbox>
             <mpv:MediaElementWrapper x:Name="Player" Visibility="Collapsed"/>
         </Grid>
