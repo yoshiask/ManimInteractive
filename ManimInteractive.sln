@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.27703.2035
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManimInteractive", "ManimInteractive\ManimInteractive.csproj", "{3E305C40-B52D-4450-A450-B65FEC3614DE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManimSetup", "ManimSetup\ManimSetup.csproj", "{97348B9C-FA3C-4C41-83D9-EF505D4136DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{3E305C40-B52D-4450-A450-B65FEC3614DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E305C40-B52D-4450-A450-B65FEC3614DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E305C40-B52D-4450-A450-B65FEC3614DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97348B9C-FA3C-4C41-83D9-EF505D4136DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97348B9C-FA3C-4C41-83D9-EF505D4136DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97348B9C-FA3C-4C41-83D9-EF505D4136DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97348B9C-FA3C-4C41-83D9-EF505D4136DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
