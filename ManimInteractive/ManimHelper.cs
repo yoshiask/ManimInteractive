@@ -79,7 +79,7 @@ namespace ManimInteractive
             { "GREEN_SCREEN", "#00FF00" },
             { "ORANGE", "#FF862F" },
         };
-        public static string ManimDirectory { get; set; } = ""; //@"C:\Users\jjask\Documents\manim\";
+        public static string ManimDirectory { get; set; } = @"C:\Users\jjask\Documents\manim\";
 
         #region Shapes
         public abstract class IMobject_Shape : Draggable
@@ -91,7 +91,21 @@ namespace ManimInteractive
             public double OutlineThickness = 0;
             public abstract string MobjType { get; }
 
-            public abstract string GetPyInitializer(string defaultName);
+            public Dictionary<string, AnimationMethod> AvailableAnimations = new Dictionary<string, AnimationMethod>();
+            public delegate string AnimationMethod(string name);
+            public abstract void LoadAnimations();
+
+            /// <summary>
+            /// Returns a string that initializes the mobject in manim for Python scenes.
+            /// </summary>
+            /// <param name="name">Name to set in Python scene. Empty or whitespace sets to default</param>
+            /// <returns></returns>
+            public abstract string GetPyInitializer(string name, string AddToEachLine);
+            /// <summary>
+            /// Draws a red border around the bounds of the shape.
+            /// </summary>
+            /// <param name="thickness">Thickness of the border</param>
+            public abstract void DrawSelectionBorder(double thickness);
 
             public static string CalculateXPosition(double X)
             {
@@ -136,42 +150,91 @@ namespace ManimInteractive
                 }
                 set {
                     _fill = value;
-                    Background = Common.BrushFromHex(Colors[_fill]);
+                    InternalRectangle.Fill = Common.BrushFromHex(Colors[_fill]);
                 }
             }
             public override string MobjType {
                 get;
             } = "Rectangle";
+            private Rectangle InternalRectangle;
+            private Border InternalBorder;
 
+            /// <summary>
+            /// Draws a Rectangle mobject in the specified view.
+            /// </summary>
+            /// <param name="name">Name of the mobject</param>
+            /// <param name="view">The view to draw the shape in</param>
+            /// <param name="rect">Relative position and size of the shape</param>
+            /// <param name="outline">Stroke color (manim)</param>
+            /// <param name="fill">Fill color (manim)</param>
+            /// <param name="zindex">Zindex/Arrange height</param>
             public static void Draw(string name, Panel view, Rect rect, string outline, string fill, int zindex)
             {
+                var rectangle = new Rectangle()
+                {
+                    Fill = Common.BrushFromHex(Colors[fill]),
+                    Stroke = Common.BrushFromHex(Colors[outline]),
+                    StrokeThickness = 7,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    IsHitTestVisible = false
+                };
+                var border = new Border()
+                {
+                    Background = null,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red),
+                    BorderThickness = new Thickness(0),
+                    Child = rectangle
+                };
                 var item = new Mobject_Rectangle()
                 {
                     Name = name,
-                    Fill = fill,
-                    Outline = outline,
+                    Children =
+                    {
+                        border
+                    },
                     IsDraggable = true,
+                    IsHitTestVisible = true,
+                    Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    InternalRectangle = rectangle,
+                    InternalBorder = border,
+                    Fill = fill,
                 };
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
             }
-            public override string GetPyInitializer(string defaultName)
+            public override void DrawSelectionBorder(double thickness)
             {
-                if (String.IsNullOrWhiteSpace(Name))
-                    Name = defaultName;
+                InternalBorder.BorderThickness = new Thickness(thickness);
+            }
 
-                string init = $"{Name} = Rectangle()\r\n";
+            public override void LoadAnimations()
+            {
+                this.AvailableAnimations.Add("ShowCreation", GetShowCreationMethod);
+            }
+            public override string GetPyInitializer(string name, string AddToEachLine)
+            {
+                if (!String.IsNullOrWhiteSpace(name))
+                    Name = name;
 
-                init += $"{PY_TAB}{PY_TAB}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
+                string init = $"{AddToEachLine}{Name} = Rectangle()\r\n";
+
+                init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
                 //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
 
-                init += $"{PY_TAB}{PY_TAB}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
-                init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
+                init += $"{AddToEachLine}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
 
-                // TODO: Calculate vectors for positioning
-                init += $"{PY_TAB}{PY_TAB}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                // Calculate vectors for positioning
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
                 return init;
+            }
+            public string GetShowCreationMethod(string name)
+            {
+                if (!String.IsNullOrWhiteSpace(name))
+                    Name = name;
+                return $"self.play(ShowCreation({Name}))";
             }
         }
 
@@ -191,49 +254,229 @@ namespace ManimInteractive
                 get;
             } = "Ellipse";
             private Ellipse InternalEllipse;
+            private Border InternalBorder;
 
+            /// <summary>
+            /// Draws an Ellipse mobject in the specified view.
+            /// </summary>
+            /// <param name="name">Name of the mobject</param>
+            /// <param name="view">The view to draw the shape in</param>
+            /// <param name="rect">Relative position and size of the shape</param>
+            /// <param name="outline">Stroke color (manim)</param>
+            /// <param name="fill">Fill color (manim)</param>
+            /// <param name="zindex">Zindex/Arrange height</param>
             public static void Draw(string name, Panel view, Rect rect, string outline, string fill, int zindex)
             {
                 var ellipse = new Ellipse()
                 {
                     Fill = Common.BrushFromHex(Colors[fill]),
+                    Stroke = Common.BrushFromHex(Colors[outline]),
+                    StrokeThickness = 7,
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     VerticalAlignment = VerticalAlignment.Stretch,
                     IsHitTestVisible = false
+                };
+                var border = new Border()
+                {
+                    Background = null,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red),
+                    BorderThickness = new Thickness(0),
+                    Child = ellipse
                 };
                 var item = new Mobject_Ellipse()
                 {
                     Name = name,
                     Children =
                     {
-                        ellipse
+                        border
                     },
                     IsDraggable = true,
                     IsHitTestVisible = true,
                     Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
                     InternalEllipse = ellipse,
+                    InternalBorder = border,
                     Fill = fill,
                 };
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
             }
-            public override string GetPyInitializer(string defaultName)
+            public override void DrawSelectionBorder(double thickness)
             {
-                if (String.IsNullOrWhiteSpace(Name))
-                    Name = defaultName;
+                InternalBorder.BorderThickness = new Thickness(thickness);
+            }
 
-                string init = $"{Name} = Ellipse()\r\n";
+            public override void LoadAnimations()
+            {
+                AvailableAnimations.Add("ShowCreation", GetShowCreationMethod);
+            }
+            public override string GetPyInitializer(string name, string AddToEachLine)
+            {
+                if (!String.IsNullOrWhiteSpace(name))
+                    Name = name;
 
-                init += $"{PY_TAB}{PY_TAB}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
+                string init = $"{AddToEachLine}{Name} = Ellipse()\r\n";
+
+                init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
                 //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
 
-                init += $"{PY_TAB}{PY_TAB}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
-                init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
+                init += $"{AddToEachLine}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
 
-                // TODO: Calculate vectors for positioning
-                init += $"{PY_TAB}{PY_TAB}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                // Calculate vectors for positioning
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
                 return init;
+            }
+            public string GetShowCreationMethod(string name)
+            {
+                if (!String.IsNullOrWhiteSpace(name))
+                    Name = name;
+                return $"self.play(ShowCreation({Name}))";
+            }
+        }
+
+        public class Mobject_Text : IMobject_Shape
+        {
+            private string _fill;
+            public override string Fill {
+                get {
+                    return _fill;
+                }
+                set {
+                    _fill = value;
+                    InternalBlock.Foreground = Common.BrushFromHex(Colors[_fill]);
+                }
+            }
+            public override string MobjType {
+                get;
+            } = "TextMobject";
+            private string _text = "";
+            public string TextContent {
+                get {
+                    return _text;
+                }
+                set {
+                    _text = value;
+                    InternalBlock.Text = value;
+                }
+            }
+            private TextBlock InternalBlock;
+            private Border InternalBorder;
+
+            /// <summary>
+            /// Draws a Text mobject in the specified view.
+            /// </summary>
+            /// <param name="name">Name of the mobject</param>
+            /// <param name="view">Panel to draw in</param>
+            /// <param name="rect">Relative sizing and location</param>
+            /// <param name="text">Text content</param>
+            /// <param name="fill">Text fill color</param>
+            /// <param name="fontsize">Text size</param>
+            /// <param name="zindex">Zindex/Arrange height</param>
+            public static void Draw(string name, Panel view, Rect rect, string text, string fill, double fontsize, int zindex)
+            {
+                var textblock = new TextBlock()
+                {
+                    FontFamily = new FontFamily("BKM-cmr17"),
+                    FontSize = fontsize,
+                    Text = text,
+                    Background = null,
+                    Foreground = Common.BrushFromHex(Colors[fill]),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    IsHitTestVisible = false
+                };
+                var border = new Border()
+                {
+                    Background = null,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red),
+                    BorderThickness = new Thickness(0),
+                    Child = textblock
+                };
+                var item = new Mobject_Text()
+                {
+                    Name = name,
+                    Children =
+                    {
+                        border
+                    },
+                    IsDraggable = true,
+                    IsHitTestVisible = true,
+                    Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    InternalBlock = textblock,
+                    InternalBorder = border,
+                    Fill = fill,
+                    TextContent = text,
+                };
+                item.LoadAnimations();
+                SetRelativeRect(item, rect);
+                view.Children.Add(item);
+                SetZIndex(item, zindex);
+            }
+            public override void DrawSelectionBorder(double thickness)
+            {
+                InternalBorder.BorderThickness = new Thickness(thickness);
+            }
+
+            public override void LoadAnimations()
+            {
+                AvailableAnimations.Add("Write", GetWriteMethod);
+            }
+            public override string GetPyInitializer(string name, string AddToEachLine)
+            {
+                if (!String.IsNullOrWhiteSpace(name))
+                    Name = name;
+
+                string init = $"{AddToEachLine}{Name} = TextMobject(\r\n";
+                init += $"{AddToEachLine}{PY_TAB}\"{TextContent}\"\r\n";
+                //init += $"{PY_TAB}text_to_color_map={{\"{TextContent}\"}}";
+                init += $"{AddToEachLine})\r\n";
+
+                init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
+                //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
+
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
+                //init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+
+                // Calculate vectors for positioning
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                return init;
+            }
+            public string GetWriteMethod(string name)
+            {
+                if (!String.IsNullOrWhiteSpace(name))
+                    Name = name;
+                return $"self.play(Write({Name}))";
+            }
+        }
+        #endregion
+
+        #region Built-in Drawings
+        private static IList<string> _drawings;
+        public static IList<string> ManimDrawings {
+            get {
+                if (_drawings == null && ManimDirectory != "")
+                {
+                    _drawings = new List<string>();
+                    string path = System.IO.Path.Combine(ManimDirectory, @"mobject\svg\drawings.py");
+                    var script = System.IO.File.ReadAllLines(path).ToList();
+                    foreach (string line in script)
+                    {
+                        if (line.StartsWith("class "))
+                        {
+                            string classname;
+                            // Remove "class "
+                            classname = line.Remove(0, 6);
+
+                            // Get class name
+                            classname = classname.Split('(')[0];
+
+                            // Add to Drawings list
+                            _drawings.Add(classname);
+                        }
+                    }
+                }
+                return _drawings;
             }
         }
         #endregion

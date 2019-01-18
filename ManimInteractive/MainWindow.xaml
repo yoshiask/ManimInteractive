@@ -85,10 +85,15 @@
                            Icon="/Assets/Icons/Circle_16x.png"
                            LargeIcon="/Assets/Icons/Circle_32x.png"
                            Click="NewEllipseButton_Click"/>
+                    <Fluent:Button Header="New Textbox"
+                           x:Name="NewTextboxButton"
+                           Icon="/Assets/Icons/TextBox_16x.png"
+                           LargeIcon="/Assets/Icons/TextBox_32x.png"
+                           Click="NewTextboxButton_Click"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
             <!--Contextual Tabs-->
-            <Fluent:RibbonTabItem Header="Format" Group="{Binding Source={x:Reference drawingGroup}}">
+            <Fluent:RibbonTabItem x:Name="FormatTab" Header="Format" Group="{Binding Source={x:Reference drawingGroup}}">
                 <Fluent:RibbonGroupBox Header="Position">
                     <StackPanel MinWidth="75">
                         <TextBox x:Name="ItemHeightBox" ToolTip="Shape Height" TextChanged="ItemHeightBox_TextChanged"/>
@@ -129,6 +134,27 @@
                                    LargeIcon="/Assets/Icons/SendBackward_32x.png"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
+            <Fluent:RibbonTabItem x:Name="TextTab" Header="Text" Group="{Binding Source={x:Reference textGroup}}">
+                <Fluent:RibbonGroupBox Header="Text Contents">
+                    
+                    <Grid MinWidth="200" Width="200" Height="{Binding TextTab.Height}">
+                        <RichTextBox Name="richTB" Width="200">
+                            <FlowDocument>
+                                <Paragraph>
+                                    <Run>Paragraph 1</Run>
+                                </Paragraph>
+                                <Paragraph>
+                                    <Run>Paragraph 2</Run>
+                                </Paragraph>
+                                <Paragraph>
+                                    <Run>Paragraph 3</Run>
+                                </Paragraph>
+                            </FlowDocument>
+                        </RichTextBox>
+                    </Grid>
+                    
+                </Fluent:RibbonGroupBox>
+            </Fluent:RibbonTabItem>
 
             <!--Contextual Tab Groups-->
             <Fluent:Ribbon.ContextualGroups>
@@ -137,6 +163,11 @@
                                      Visibility="Collapsed"
                                      Background="#F7C797" 
                                      BorderBrush="#F7C797" />
+                <Fluent:RibbonContextualTabGroup x:Name="textGroup"
+                                     Header="Text Tools" 
+                                     Visibility="Collapsed"
+                                     Background="#A31515" 
+                                     BorderBrush="#A31515" />
             </Fluent:Ribbon.ContextualGroups>
 
             <!--StartScreen-->

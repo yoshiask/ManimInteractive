@@ -1,0 +1,110 @@
+﻿<Window x:Name="Window" x:Class="ManimSetup.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ManimSetup"
+        mc:Ignorable="d"
+        AllowsTransparency="True"
+        Title="Manim Setup" Height="674" Width="490" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize" Background="Transparent">
+    <Window.Resources>
+        <Style TargetType="{x:Type CheckBox}">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+            <Setter Property="Background" Value="{StaticResource OptionMark.Static.Background}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource OptionMark.Static.Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <Grid x:Name="templateRoot" Background="Transparent" SnapsToDevicePixels="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="checkBoxBorder" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Margin="1" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Height="19" Width="19">
+                                <Grid x:Name="markGrid">
+                                    <Path x:Name="optionMark" Data="F1 M 9.97498,1.22334L 4.6983,9.09834L 4.52164,9.09834L 0,5.19331L 1.27664,3.52165L 4.255,6.08833L 8.33331,1.52588e-005L 9.97498,1.22334 Z " Fill="{TemplateBinding Foreground}" Margin="1" Opacity="0" Stretch="Uniform"/>
+                                    <Rectangle x:Name="indeterminateMark" Fill="{StaticResource OptionMark.Static.Glyph}" Margin="2" Opacity="0"/>
+                                </Grid>
+                            </Border>
+                            <ContentPresenter x:Name="contentPresenter" Grid.Column="1" Focusable="False" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Margin="4,0,0,0" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasContent" Value="true">
+                                <Setter Property="FocusVisualStyle" Value="{StaticResource OptionMarkFocusVisual}"/>
+                                <Setter Property="Padding" Value="4,-1,0,0"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter Property="Background" TargetName="checkBoxBorder" Value="{StaticResource OptionMark.MouseOver.Background}"/>
+                                <Setter Property="BorderBrush" TargetName="checkBoxBorder" Value="{StaticResource OptionMark.MouseOver.Border}"/>
+                                <Setter Property="Fill" TargetName="optionMark" Value="{StaticResource OptionMark.MouseOver.Glyph}"/>
+                                <Setter Property="Fill" TargetName="indeterminateMark" Value="{StaticResource OptionMark.MouseOver.Glyph}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="false">
+                                <Setter Property="Background" TargetName="checkBoxBorder" Value="{StaticResource OptionMark.Disabled.Background}"/>
+                                <Setter Property="BorderBrush" TargetName="checkBoxBorder" Value="{StaticResource OptionMark.Disabled.Border}"/>
+                                <Setter Property="Fill" TargetName="optionMark" Value="{StaticResource OptionMark.Disabled.Glyph}"/>
+                                <Setter Property="Fill" TargetName="indeterminateMark" Value="{StaticResource OptionMark.Disabled.Glyph}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="true">
+                                <Setter Property="Background" TargetName="checkBoxBorder" Value="{StaticResource OptionMark.Pressed.Background}"/>
+                                <Setter Property="BorderBrush" TargetName="checkBoxBorder" Value="{StaticResource OptionMark.Pressed.Border}"/>
+                                <Setter Property="Fill" TargetName="optionMark" Value="{StaticResource OptionMark.Pressed.Glyph}"/>
+                                <Setter Property="Fill" TargetName="indeterminateMark" Value="{StaticResource OptionMark.Pressed.Glyph}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="true">
+                                <Setter Property="Opacity" TargetName="optionMark" Value="1"/>
+                                <Setter Property="Opacity" TargetName="indeterminateMark" Value="0"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="{x:Null}">
+                                <Setter Property="Opacity" TargetName="optionMark" Value="0"/>
+                                <Setter Property="Opacity" TargetName="indeterminateMark" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+    <Grid x:Name="MainGrid" Background="#FF2D2D2D" Margin="15">
+        <Grid.Effect>
+            <DropShadowEffect BlurRadius="15" ShadowDepth="2" Direction="270"/>
+        </Grid.Effect>
+
+        <Grid x:Name="TopGrid" >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="64"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="TitleGrid" MouseDown="TitleGrid_MouseDown" Grid.Row="0">
+                <Button x:Name="CloseButton" Content="x" HorizontalAlignment="Right" Margin="0,10,10,0" VerticalAlignment="Top" Width="26" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="#FFB4B4B4" Height="26" FontSize="16" Click="CloseButton_Click"/>
+                <Button x:Name="MinimizeButton" Content="_" HorizontalAlignment="Right" Margin="0,10,36,0" VerticalAlignment="Top" Width="26" Background="{x:Null}" BorderBrush="{x:Null}" Foreground="#FFB4B4B4" Height="26" FontWeight="Bold" FontSize="16" Click="MinimizeButton_Click"/>
+                <Image x:Name="TitleIcon" HorizontalAlignment="Left" Margin="11,11,0,11" Width="42" Source="3b1b_logo.png"/>
+                <Label x:Name="TitleLabel" Content="3blue1brown" HorizontalAlignment="Left" Margin="57,1,0,5" VerticalAlignment="Center" FontSize="32" Foreground="White"/>
+            </Grid>
+            <Grid x:Name="CenterGrid" Margin="30,20,30,90" Grid.Row="1">
+                <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Manim - Mathematical Animation Engine" VerticalAlignment="Top" Foreground="White" FontSize="16" Margin="5,0,0,0"/>
+                <Label Content="Choose your install location" Margin="0,50,10,0" VerticalAlignment="Top" Foreground="#FFB4B4B4" FontSize="14"/>
+                <TextBox x:Name="InstallDirBox" Height="23" Margin="5,79,33,0" TextWrapping="Wrap" Text="C:\Users\jjask\Desktop\ManimSetupTesting" VerticalAlignment="Top" Foreground="#FFB4B4B4" Background="#FF343446" BorderBrush="#FF707070" FontSize="14"/>
+                <Label Content="Setup requires up to 50 MB." Margin="0,102,10,0" VerticalAlignment="Top" Foreground="#FFB4B4B4" FontSize="14"/>
+                <Button x:Name="InstallDirButton" Content="..." Margin="0,79,5,0" VerticalAlignment="Top" Background="{x:Null}" BorderBrush="#FF626262" Foreground="#FFB4B4B4" Height="23" HorizontalAlignment="Right" Width="23" Click="InstallDirButton_Click"/>
+                <Label Content="Choose packages to install:" Margin="0,155,10,0" VerticalAlignment="Top" Foreground="#FFB4B4B4" FontSize="14"/>
+                <CheckBox x:Name="ManimCheckbox" Content="manim" Margin="5,184,5,0" VerticalAlignment="Top" Background="#FF343446" Foreground="#FFB4B4B4" IsChecked="True" IsEnabled="False" FontSize="14"/>
+                <CheckBox x:Name="CairoCheckbox" Content="Cairo (Cairo for Windows &amp; pycairo)" Margin="5,226,5,0" VerticalAlignment="Top" Background="#FF343446" Foreground="#FFB4B4B4" IsChecked="True"/>
+                <CheckBox x:Name="LatexCheckbox" Content="LaTeX (MiKTeX 2.9)" Margin="5,247,5,0" VerticalAlignment="Top" Background="#FF343446" Foreground="#FFB4B4B4" IsChecked="True"/>
+                <CheckBox x:Name="ffmpegCheckbox" Content="FFmpeg" Margin="5,268,5,0" VerticalAlignment="Top" Background="#FF343446" Foreground="#FFB4B4B4" IsChecked="True"/>
+                <CheckBox x:Name="SoxCheckbox" Content="SoX" Margin="5,289,5,0" VerticalAlignment="Top" Background="#FF343446" Foreground="#FFB4B4B4" IsEnabled="False"/>
+                <CheckBox x:Name="PythonCheckbox" Content="Python 3.7" Margin="5,205,5,0" VerticalAlignment="Top" Background="#FF343446" Foreground="#FFB4B4B4" IsChecked="True" IsEnabled="False"/>
+                <CheckBox x:Name="AddToPathCheckbox" Content="Add manim to PATH" Margin="5,368,5,0" VerticalAlignment="Top" Background="#FF343446" Foreground="#FFB4B4B4" FontSize="14"/>
+            </Grid>
+        </Grid>
+        
+        <Grid x:Name="BottomGrid" Background="#FF252525" Margin="0" Height="70" VerticalAlignment="Bottom">
+            <Button x:Name="NextButton" Content="Install" HorizontalAlignment="Right" Margin="0,0,34,0" VerticalAlignment="Center" Width="80" Background="{x:Null}" BorderBrush="#FF626262" Foreground="#FFB4B4B4" IsDefault="True" Height="26" Click="NextButton_Click"/>
+            <Button x:Name="CancelButton" Content="Cancel" HorizontalAlignment="Left" Margin="34,0,0,0" VerticalAlignment="Center" Width="80" Background="{x:Null}" BorderBrush="#FF626262" Foreground="#FFB4B4B4" Height="26" IsCancel="True" Click="CancelButton_Click"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -53,12 +53,19 @@ namespace ManimInteractive
             DisplayCanvas.Height = ManimHelper.PixelHeight;
 
             ReloadManimLocationBox();
+
+            foreach (string drawing in ManimHelper.ManimDrawings)
+            {
+                Console.WriteLine("     > " + drawing);
+            }
         }
 
         #region Python
-        private string GenerateScene()
+        private string SceneName = "DefaultScene";
+
+        private string GenerateScene(string sceneName)
         {
-            string pythonScene = ManimHelper.PythonSceneHeader + $"class Default(Scene):\r\n";
+            string pythonScene = ManimHelper.PythonSceneHeader + $"class {SceneName}(Scene):\r\n";
             pythonScene += $"{ManimHelper.PY_TAB}def construct(self):\r\n";
 
             UIElementCollection elements = DisplayCanvas.Children;
@@ -71,7 +78,8 @@ namespace ManimInteractive
                     switch (shape.Visibility)
                     {
                         case Visibility.Visible:
-                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{shape.GetPyInitializer(shape.MobjType + itemindex)}\r\n";
+                            pythonScene += shape.GetPyInitializer(shape.MobjType + itemindex, ManimHelper.PY_TAB + ManimHelper.PY_TAB);
+                            pythonScene += "\r\n";
                             itemindex++;
                             break;
 
@@ -82,13 +90,33 @@ namespace ManimInteractive
                 }
             }
             pythonScene += $"\r\n";
+
+            itemindex = 0;
             foreach (FrameworkElement item in elements)
             {
                 var shape = item as ManimHelper.IMobject_Shape;
                 if (shape != null)
                 {
                     if (shape.Visibility == Visibility.Visible)
-                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}self.play(ShowCreation({shape.Name}))\r\n";
+                    {
+                        string name = shape.MobjType + itemindex;
+                        if (shape.GetType() == typeof(ManimHelper.Mobject_Ellipse))
+                        {
+                            var ellipseobj = shape as ManimHelper.Mobject_Ellipse;
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{ellipseobj.GetShowCreationMethod(name)}\r\n";
+                        }
+                        else if (shape.GetType() == typeof(ManimHelper.Mobject_Rectangle))
+                        {
+                            var rectobj = shape as ManimHelper.Mobject_Rectangle;
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{rectobj.GetShowCreationMethod(name)}\r\n";
+                        }
+                        else
+                        {
+                            var textobj = shape as ManimHelper.Mobject_Text;
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{textobj.GetWriteMethod(name)}\r\n";
+                        }
+                        itemindex++;
+                    }
                 }
             }
 
@@ -170,23 +198,25 @@ namespace ManimInteractive
                 PlaybackPlayButton.IsEnabled = false;
                 PlaybackStopButton.IsEnabled = false;
                 Player.Visibility = Visibility.Collapsed;
+                DisplayCanvas.Visibility = Visibility.Visible;
             }
             else
             {
                 try
                 {
-                    File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene());
-                    Common.RunCMD("cmd.exe", @"py -3 extract_scene.py testing\exported_scenes.py Default -pl", ProcessWindowStyle.Normal);
+                    File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene(SceneName));
+                    Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName} -pl", ProcessWindowStyle.Normal);
 
                     Player.Stretch = Stretch.Uniform;
                     Player.MediaEnded += Player_LoopMedia;
                     Player.Visibility = Visibility.Visible;
-                    Player.Source = new Uri(@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\480p15\Default.mp4");
+                    Player.Source = new Uri($@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\480p15\{SceneName}.mp4");
                     IsPreviewing = true;
 
                     PreviewButton.Icon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_16x.png");
                     PreviewButton.LargeIcon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_32x.png");
                     PreviewButton.Header = "Stop Preview";
+                    DisplayCanvas.Visibility = Visibility.Collapsed;
 
                     PlaybackPlayButton.IsEnabled = true;
                     PlaybackStopButton.IsEnabled = true;
@@ -210,18 +240,19 @@ namespace ManimInteractive
 
         private void RenderButton_Click(object sender, RoutedEventArgs e)
         {
-            File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene());
-            Common.RunCMD("cmd.exe", @"py -3 extract_scene.py testing\exported_scenes.py Default", ProcessWindowStyle.Normal);
-
+            File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene(SceneName));
+            Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName}", ProcessWindowStyle.Normal);
+        
             Player.Stretch = Stretch.Uniform;
             Player.MediaEnded += Player_LoopMedia;
             Player.Visibility = Visibility.Visible;
-            Player.Source = new Uri(@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\1440p60\Default.mp4");
+            Player.Source = new Uri($@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\1440p60\{SceneName}.mp4");
             IsPreviewing = true;
 
             PreviewButton.Icon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_16x.png");
             PreviewButton.LargeIcon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_32x.png");
             PreviewButton.Header = "Stop Preview";
+            DisplayCanvas.Visibility = Visibility.Collapsed;
 
             PlaybackPlayButton.IsEnabled = true;
             PlaybackStopButton.IsEnabled = true;
@@ -246,6 +277,7 @@ namespace ManimInteractive
         }
         #endregion
 
+        #region Shape Creation
         private int curZIndex = 99;
         private void NewRectButton_Click(object sender, RoutedEventArgs e)
         {
@@ -255,7 +287,13 @@ namespace ManimInteractive
         {
             ManimHelper.Mobject_Ellipse.Draw("TestEllipse", DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++);
         }
+        private void NewTextboxButton_Click(object sender, RoutedEventArgs e)
+        {
+            ManimHelper.Mobject_Text.Draw("TestText", DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "3blue1brown", "WHITE", 64, curZIndex++);
+        }
+        #endregion
 
+        #region Selected Visual
         public ManimHelper.IMobject_Shape SelectedVisual;
         public bool IsLoadingSelected = false;
         private void DisplayCanvas_MouseDown(object sender, MouseButtonEventArgs e)
@@ -271,26 +309,50 @@ namespace ManimInteractive
         }
         private void SelectMobject(ManimHelper.IMobject_Shape shape)
         {
+            // Deselect any currently selected objects
+            Deselect();
+            MainRibbon.SelectedTabItem = FormatTab;
+
+            // Set UI
             SelectedVisual = shape;
             IsLoadingSelected = true;
-            //SelectedVisual.DrawBorder(DisplayCanvas);
+            SelectedVisual.DrawSelectionBorder(5);
             drawingGroup.Visibility = Visibility.Visible;
             SelectedVisual.DragStateChanged += SelectedVisual_DragStateChanged;
+            if (SelectedVisual.GetType() == typeof(ManimHelper.Mobject_Text))
+            {
+                textGroup.Visibility = Visibility.Visible;
+                var line = new System.Windows.Documents.Run((SelectedVisual as ManimHelper.Mobject_Text).TextContent);
+                var paragraph = new System.Windows.Documents.Paragraph(line);
+                richTB.Document = new System.Windows.Documents.FlowDocument(paragraph);
+            }
             UpdateDrawingToolsUI(SelectedVisual);
             IsLoadingSelected = false;
         }
         private void Deselect()
         {
-            //SelectedVisual.DragStateChanged -= SelectedVisual_DragStateChanged;
-            SelectedVisual = null;
+            if (SelectedVisual != null)
+            {
+                //SelectedVisual.DragStateChanged -= SelectedVisual_DragStateChanged;
+                SelectedVisual.DrawSelectionBorder(0);
+
+                if (SelectedVisual.GetType() == typeof(ManimHelper.Mobject_Text))
+                {
+                    textGroup.Visibility = Visibility.Collapsed;
+                    richTB.Document = new System.Windows.Documents.FlowDocument();
+                }
+
+                SelectedVisual = null;
+            }
             drawingGroup.Visibility = Visibility.Collapsed;
         }
-
         private void SelectedVisual_DragStateChanged(object sender, DragStateChanged e)
         {
             UpdateDrawingToolsUI(SelectedVisual);
         }
+        #endregion
 
+        #region Ribbon Stuff
         private void DeleteSelectedButton_Click(object sender, RoutedEventArgs e)
         {
             var obj = SelectedVisual;
@@ -332,6 +394,7 @@ namespace ManimInteractive
                 ItemYBox.Text = Math.Round(Draggable.GetRelativeRect(item).Y * DisplayCanvas.ActualHeight).ToString();
 
                 FillColorSelectBox.SelectedIndex = ManimHelper.Colors.Keys.ToList().IndexOf(item.Fill);
+                FillColorDisplay.Background = Common.BrushFromHex(ManimHelper.Colors[item.Fill]);
             }
         }
 
@@ -348,51 +411,65 @@ namespace ManimInteractive
         {
             if (!IsLoadingSelected && SelectedVisual != null)
             {
-                if (String.IsNullOrWhiteSpace(ItemXBox.Text))
+                try
+                {
+                    double NewRelative = Convert.ToDouble(ItemXBox.Text) / DisplayCanvas.Width;
+                    SelectedVisual.SetX(NewRelative, DisplayCanvas);
+                }
+                catch (Exception)
                 {
                     ItemXBox.Text = "0";
                 }
-                double NewRelative = Convert.ToDouble(ItemXBox.Text) / DisplayCanvas.Width;
-                SelectedVisual.SetX(NewRelative, DisplayCanvas);
             }
         }
         private void ItemYBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoadingSelected && SelectedVisual != null)
             {
-                if (String.IsNullOrWhiteSpace(ItemYBox.Text))
+                try
+                {
+                    double NewRelative = Convert.ToDouble(ItemYBox.Text) / DisplayCanvas.Height;
+                    SelectedVisual.SetY(NewRelative, DisplayCanvas);
+                }
+                catch (Exception)
                 {
                     ItemYBox.Text = "0";
                 }
-                double NewRelative = Convert.ToDouble(ItemYBox.Text) / DisplayCanvas.Height;
-                SelectedVisual.SetY(NewRelative, DisplayCanvas);
             }
         }
         private void ItemWidthBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoadingSelected && SelectedVisual != null)
             {
-                if (String.IsNullOrWhiteSpace(ItemWidthBox.Text))
+                try
+                {
+                    double NewRelative = Convert.ToDouble(ItemWidthBox.Text) / DisplayCanvas.Width;
+                    SelectedVisual.SetWidth(NewRelative, DisplayCanvas);
+                }
+                catch (Exception)
                 {
                     ItemWidthBox.Text = "0";
                 }
-                double NewRelative = Convert.ToDouble(ItemWidthBox.Text) / DisplayCanvas.Width;
-                SelectedVisual.SetWidth(NewRelative, DisplayCanvas);
             }
         }
         private void ItemHeightBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoadingSelected && SelectedVisual != null)
             {
-                if (String.IsNullOrWhiteSpace(ItemHeightBox.Text))
+                try
+                {
+                    double NewRelative = Convert.ToDouble(ItemHeightBox.Text) / DisplayCanvas.Height;
+                    SelectedVisual.SetHeight(NewRelative, DisplayCanvas);
+                }
+                catch (Exception)
                 {
                     ItemHeightBox.Text = "0";
                 }
-                double NewRelative = Convert.ToDouble(ItemHeightBox.Text) / DisplayCanvas.Height;
-                SelectedVisual.SetHeight(NewRelative, DisplayCanvas);
             }
         }
+        #endregion
 
+        #region Manim Locations
         private void LocateManimButton_Click(object sender, RoutedEventArgs e)
         {
             ShowManimLocator();
@@ -429,6 +506,7 @@ namespace ManimInteractive
                 ManimLocationBox.Foreground = new SolidColorBrush(Colors.White);
             }
         }
+        #endregion
 
         #region Thumbs
         public class MoveThumb : Thumb
