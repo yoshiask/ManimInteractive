@@ -22,6 +22,42 @@ namespace ManimInteractive
         public const double FrameWidth = (8 * PixelWidth / PixelHeight);
         public static readonly Point FrameOrigin = new Point(FrameWidth / 2, FrameHeight / 2);
 
+        public static CameraConfig ActiveCameraConfig = CameraConfig.Production;
+        public class CameraConfig
+        {
+            public static readonly CameraConfig Production= new CameraConfig("Production", 2560, 1440, 1/60, "1440p60");
+            public static readonly CameraConfig High = new CameraConfig("High", 1920, 1080, 1/60, "1080p60");
+            public static readonly CameraConfig Medium = new CameraConfig("Medium", 1280, 720, 1/30, "720p30");
+            public static readonly CameraConfig Low = new CameraConfig("Low", 854, 480, 1/15, "480p15");
+
+            public string Name;
+            public int Width;
+            public int Height;
+            public double FrameDuration;
+            public string ExportFolder;
+            public CameraConfig(string name, int pixelwidth, int pixelheight, double frameduration, string exportfolder)
+            {
+                Name = name;
+                Width = pixelwidth;
+                Height = pixelheight;
+                FrameDuration = frameduration;
+                ExportFolder = exportfolder;
+            }
+        }
+
+        public class ExportOptions
+        {
+            public bool Preview = false;
+            public bool LowQuality = false;
+            public bool MediumQuality = false;
+            public bool HideProgress = false;
+            public bool SavePNG = false;
+            public bool UseTransparency = false;
+            public int StartAtAnimation = 0;
+            public string BackgroundColor = Colors["BLACK"];
+            //public CameraConfig Camera = CameraConfig.Production;
+        }
+
         public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
             { "DARK_BLUE", "#236B8E" },
             { "DARK_BROWN", "#8B4513" },
@@ -92,20 +128,19 @@ namespace ManimInteractive
             public abstract string MobjType { get; }
 
             public Dictionary<string, AnimationMethod> AvailableAnimations = new Dictionary<string, AnimationMethod>();
-            public delegate string AnimationMethod(string name);
+            public delegate string AnimationMethod(object[] args);
             public abstract void LoadAnimations();
 
             /// <summary>
             /// Returns a string that initializes the mobject in manim for Python scenes.
             /// </summary>
-            /// <param name="name">Name to set in Python scene. Empty or whitespace sets to default</param>
             /// <returns></returns>
-            public abstract string GetPyInitializer(string name, string AddToEachLine);
+            public abstract string GetPyInitializer(string AddToEachLine);
             /// <summary>
             /// Draws a red border around the bounds of the shape.
             /// </summary>
             /// <param name="thickness">Thickness of the border</param>
-            public abstract void DrawSelectionBorder(double thickness);
+            public abstract void DrawSelectionBorder(double thickness = 5);
 
             public static string CalculateXPosition(double X)
             {
@@ -182,8 +217,8 @@ namespace ManimInteractive
                 var border = new Border()
                 {
                     Background = null,
-                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red),
-                    BorderThickness = new Thickness(0),
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    BorderThickness = new Thickness(5),
                     Child = rectangle
                 };
                 var item = new Mobject_Rectangle()
@@ -204,20 +239,22 @@ namespace ManimInteractive
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
             }
-            public override void DrawSelectionBorder(double thickness)
+            public override void DrawSelectionBorder(double thickness = 5)
             {
-                InternalBorder.BorderThickness = new Thickness(thickness);
+                if (thickness <= 0)
+                {
+                    InternalBorder.BorderThickness = new Thickness(5);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent);
+                }
+                else
+                {
+                    InternalBorder.BorderThickness = new Thickness(thickness);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red);
+                }
             }
 
-            public override void LoadAnimations()
+            public override string GetPyInitializer(string AddToEachLine)
             {
-                this.AvailableAnimations.Add("ShowCreation", GetShowCreationMethod);
-            }
-            public override string GetPyInitializer(string name, string AddToEachLine)
-            {
-                if (!String.IsNullOrWhiteSpace(name))
-                    Name = name;
-
                 string init = $"{AddToEachLine}{Name} = Rectangle()\r\n";
 
                 init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
@@ -230,11 +267,27 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
                 return init;
             }
-            public string GetShowCreationMethod(string name)
+            public override void LoadAnimations()
             {
-                if (!String.IsNullOrWhiteSpace(name))
-                    Name = name;
+                AvailableAnimations.Add("ShowCreation", GetShowCreationAnim);
+                AvailableAnimations.Add("FadeIn", GetFadeInAnim);
+                AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
+            }
+            public string GetShowCreationAnim(object arg = null)
+            {
                 return $"self.play(ShowCreation({Name}))";
+            }
+            public string GetDrawBorderThenFillAnim(object arg = null)
+            {
+                return $"self.play(DrawBorderThenFill({Name}))";
+            }
+            public string GetFadeInAnim(object arg = null)
+            {
+                return $"self.play(FadeIn({Name}))";
+            }
+            public string GetFadeOutAnim(object arg = null)
+            {
+                return $"self.play(FadeOut({Name}))";
             }
         }
 
@@ -279,8 +332,8 @@ namespace ManimInteractive
                 var border = new Border()
                 {
                     Background = null,
-                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red),
-                    BorderThickness = new Thickness(0),
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    BorderThickness = new Thickness(5),
                     Child = ellipse
                 };
                 var item = new Mobject_Ellipse()
@@ -301,20 +354,28 @@ namespace ManimInteractive
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
             }
-            public override void DrawSelectionBorder(double thickness)
+            public override void DrawSelectionBorder(double thickness = 5)
             {
-                InternalBorder.BorderThickness = new Thickness(thickness);
+                if (thickness <= 0)
+                {
+                    InternalBorder.BorderThickness = new Thickness(5);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent);
+                }
+                else
+                {
+                    InternalBorder.BorderThickness = new Thickness(thickness);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red);
+                }
             }
 
             public override void LoadAnimations()
             {
-                AvailableAnimations.Add("ShowCreation", GetShowCreationMethod);
+                AvailableAnimations.Add("ShowCreation", GetShowCreationAnim);
+                AvailableAnimations.Add("FadeIn", GetFadeInAnim);
+                AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
             }
-            public override string GetPyInitializer(string name, string AddToEachLine)
+            public override string GetPyInitializer(string AddToEachLine)
             {
-                if (!String.IsNullOrWhiteSpace(name))
-                    Name = name;
-
                 string init = $"{AddToEachLine}{Name} = Ellipse()\r\n";
 
                 init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
@@ -327,11 +388,21 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
                 return init;
             }
-            public string GetShowCreationMethod(string name)
+            public string GetShowCreationAnim(object[] args = null)
             {
-                if (!String.IsNullOrWhiteSpace(name))
-                    Name = name;
                 return $"self.play(ShowCreation({Name}))";
+            }
+            public string GetDrawBorderThenFillAnim(object arg = null)
+            {
+                return $"self.play(DrawBorderThenFill({Name}))";
+            }
+            public string GetFadeInAnim(object[] args = null)
+            {
+                return $"self.play(FadeIn({Name}))";
+            }
+            public string GetFadeOutAnim(object[] args = null)
+            {
+                return $"self.play(FadeOut({Name}))";
             }
         }
 
@@ -377,7 +448,7 @@ namespace ManimInteractive
             {
                 var textblock = new TextBlock()
                 {
-                    FontFamily = new FontFamily("BKM-cmr17"),
+                    FontFamily = LaTeXHelper.DefaultFont,
                     FontSize = fontsize,
                     Text = text,
                     Background = null,
@@ -389,8 +460,8 @@ namespace ManimInteractive
                 var border = new Border()
                 {
                     Background = null,
-                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red),
-                    BorderThickness = new Thickness(0),
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    BorderThickness = new Thickness(5),
                     Child = textblock
                 };
                 var item = new Mobject_Text()
@@ -413,20 +484,28 @@ namespace ManimInteractive
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
             }
-            public override void DrawSelectionBorder(double thickness)
+            public override void DrawSelectionBorder(double thickness = 5)
             {
-                InternalBorder.BorderThickness = new Thickness(thickness);
+                if (thickness <= 0)
+                {
+                    InternalBorder.BorderThickness = new Thickness(5);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent);
+                }
+                else
+                {
+                    InternalBorder.BorderThickness = new Thickness(thickness);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red);
+                }
             }
 
             public override void LoadAnimations()
             {
-                AvailableAnimations.Add("Write", GetWriteMethod);
+                AvailableAnimations.Add("Write", GetWriteAnim);
+                AvailableAnimations.Add("FadeIn", GetFadeInAnim);
+                AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
             }
-            public override string GetPyInitializer(string name, string AddToEachLine)
+            public override string GetPyInitializer(string AddToEachLine)
             {
-                if (!String.IsNullOrWhiteSpace(name))
-                    Name = name;
-
                 string init = $"{AddToEachLine}{Name} = TextMobject(\r\n";
                 init += $"{AddToEachLine}{PY_TAB}\"{TextContent}\"\r\n";
                 //init += $"{PY_TAB}text_to_color_map={{\"{TextContent}\"}}";
@@ -442,11 +521,331 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
                 return init;
             }
-            public string GetWriteMethod(string name)
+            public string GetWriteAnim(object[] args = null)
             {
-                if (!String.IsNullOrWhiteSpace(name))
-                    Name = name;
                 return $"self.play(Write({Name}))";
+            }
+            public string GetFadeInAnim(object[] args = null)
+            {
+                return $"self.play(FadeIn({Name}))";
+            }
+            public string GetFadeOutAnim(object[] args = null)
+            {
+                return $"self.play(FadeOut({Name}))";
+            }
+        }
+
+        public class Mobject_TeX : IMobject_Shape
+        {
+            private string _fill;
+            public override string Fill {
+                get {
+                    return _fill;
+                }
+                set {
+                    _fill = value;
+                    InternalBlock.Formula = ChangeFontColor(TextContent, value);
+                }
+            }
+            public override string MobjType {
+                get;
+            } = "TexMobject";
+            private string _text = "";
+            public string TextContent {
+                get {
+                    return _text;
+                }
+                set {
+                    _text = value;
+                    InternalBlock.Formula = ChangeFontColor(value, Fill);
+                }
+            }
+            private WpfMath.Controls.FormulaControl InternalBlock;
+            private Border InternalBorder;
+
+            /// <summary>
+            /// Draws a TeX mobject in the specified view.
+            /// </summary>
+            /// <param name="name">Name of the mobject</param>
+            /// <param name="view">Panel to draw in</param>
+            /// <param name="rect">Relative sizing and location</param>
+            /// <param name="text">TeX / LaTeX</param>
+            /// <param name="fill">Text fill color</param>
+            /// <param name="fontsize">Text size</param>
+            /// <param name="zindex">Zindex/Arrange height</param>
+            public static void Draw(string name, Panel view, Rect rect, string tex, string fill, int zindex)
+            {
+                tex = ChangeFontColor(tex, fill);
+                var texblock = new WpfMath.Controls.FormulaControl()
+                {
+                    Formula = tex,
+                    Foreground = Common.BrushFromHex(Colors[fill]),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    IsHitTestVisible = false,
+                };
+                var border = new Border()
+                {
+                    Background = null,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    BorderThickness = new Thickness(5),
+                    Child = texblock
+                };
+                var item = new Mobject_TeX()
+                {
+                    Name = name,
+                    Children =
+                    {
+                        border
+                    },
+                    IsDraggable = true,
+                    IsHitTestVisible = true,
+                    Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    InternalBlock = texblock,
+                    InternalBorder = border,
+                    Fill = fill,
+                    TextContent = tex,
+                };
+                item.LoadAnimations();
+                SetRelativeRect(item, rect);
+                view.Children.Add(item);
+                SetZIndex(item, zindex);
+            }
+            public override void DrawSelectionBorder(double thickness = 5)
+            {
+                if (thickness <= 0)
+                {
+                    InternalBorder.BorderThickness = new Thickness(5);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent);
+                }
+                else
+                {
+                    InternalBorder.BorderThickness = new Thickness(thickness);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red);
+                }
+            }
+            public static string ChangeFontColor(string tex, string LaTeXcolor)
+            {
+                if (LaTeXHelper.Colors.ContainsKey(LaTeXcolor))
+                {
+                    return @"\colorbox{" + LaTeXcolor + "}{" + tex + "}";
+                }
+                else if (Colors.ContainsKey(LaTeXcolor))
+                {
+                    return @"\usepackage[dvipsnames]{xcolor}" + "\r\n" + @"\color{" + LaTeXcolor + "}{" + tex + "}";
+                }
+                else
+                {
+                    return tex;
+                }
+            }
+
+            public override void LoadAnimations()
+            {
+                AvailableAnimations.Add("Write", GetWriteAnim);
+                AvailableAnimations.Add("FadeIn", GetFadeInAnim);
+                AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
+            }
+            public override string GetPyInitializer(string AddToEachLine)
+            {
+                // TODO: Separate lines and add a tab to each one
+                string EscapedText = "";
+                foreach (string line in TextContent.Lines())
+                {
+                    EscapedText = AddToEachLine + PY_TAB + TextContent;
+                }
+
+                string init = $"{AddToEachLine}{Name} = TexMobject(\r\n";
+                init += $"{AddToEachLine}{PY_TAB}@\"{TextContent}\"\r\n";
+                //init += $"{PY_TAB}text_to_color_map={{\"{TextContent}\"}}";
+                init += $"{AddToEachLine})\r\n";
+
+                init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
+                //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
+
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
+                //init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+
+                // Calculate vectors for positioning
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                return init;
+            }
+            public string GetWriteAnim(object[] args = null)
+            {
+                return $"self.play(Write({Name}))";
+            }
+            public string GetFadeInAnim(object[] args = null)
+            {
+                return $"self.play(FadeIn({Name}))";
+            }
+            public string GetFadeOutAnim(object[] args = null)
+            {
+                return $"self.play(FadeOut({Name}))";
+            }
+        }
+
+        public class Mobject_PiCreature : IMobject_Shape
+        {
+            private string _fill;
+            public override string Fill {
+                get {
+                    return _fill;
+                }
+                set {
+                    _fill = value;
+                    InternalSvg.Source = new Uri(ChangeSVGColor(value));
+                }
+            }
+            public override string MobjType {
+                get;
+            } = "PiCreature";
+            private SharpVectors.Converters.SvgViewbox InternalSvg;
+            private Border InternalBorder;
+
+            /// <summary>
+            /// Draws an Ellipse mobject in the specified view.
+            /// </summary>
+            /// <param name="name">Name of the mobject</param>
+            /// <param name="view">The view to draw the shape in</param>
+            /// <param name="rect">Relative position and size of the shape</param>
+            /// <param name="outline">Stroke color (manim)</param>
+            /// <param name="fill">Fill color (manim)</param>
+            /// <param name="zindex">Zindex/Arrange height</param>
+            public static void Draw(string name, Panel view, Rect rect, string fill, int zindex)
+            {
+                var svg = new SharpVectors.Converters.SvgViewbox()
+                {
+                    Stretch = Stretch.Uniform,
+                    Source = new Uri(System.IO.Path.Combine(ManimDirectory, @"files\PiCreatures_plain.svg")),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    IsHitTestVisible = false
+                };
+                var border = new Border()
+                {
+                    Background = null,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    BorderThickness = new Thickness(5),
+                    Child = svg
+                };
+                var item = new Mobject_PiCreature()
+                {
+                    Name = name,
+                    Children =
+                    {
+                        border
+                    },
+                    IsDraggable = true,
+                    IsHitTestVisible = true,
+                    Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    InternalSvg = svg,
+                    InternalBorder = border,
+                    Fill = fill,
+                };
+                SetRelativeRect(item, rect);
+                view.Children.Add(item);
+                SetZIndex(item, zindex);
+            }
+            public override void DrawSelectionBorder(double thickness = 5)
+            {
+                if (thickness <= 0)
+                {
+                    InternalBorder.BorderThickness = new Thickness(5);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent);
+                }
+                else
+                {
+                    InternalBorder.BorderThickness = new Thickness(thickness);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red);
+                }
+            }
+
+            public override string GetPyInitializer(string AddToEachLine)
+            {
+                string init = $"{AddToEachLine}{Name} = PiCreature()\r\n";
+
+                init += $"{AddToEachLine}{Name}.set_color({Fill})\r\n";
+
+                // Set sizing
+                if (GetRelativeRect(this).Height * PixelHeight < GetRelativeRect(this).Width * PixelWidth)
+                    init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
+                else
+                    init += $"{AddToEachLine}{Name}.set_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+
+                // Calculate vectors for positioning
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                return init;
+            }
+
+            #region Animations
+            public override void LoadAnimations()
+            {
+                AvailableAnimations.Add("FadeIn", GetFadeInAnim);
+                AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
+                AvailableAnimations.Add("Look", GetLookAnim);
+                AvailableAnimations.Add("LookAt", GetLookAtAnim);
+            }
+            public string GetFadeInAnim(object arg = null)
+            {
+                return $"self.play(FadeIn({Name}))";
+            }
+            public string GetFadeOutAnim(object arg = null)
+            {
+                return $"self.play(FadeOut({Name}))";
+            }
+            /// <summary>
+            /// Returns a string that plays a Look animation [Accepts  <see cref="Point"/>]
+            /// </summary>
+            /// <param name="arg">Point to look at</param>
+            /// <returns></returns>
+            public string GetLookAnim(object arg)
+            {
+                var point = (Point)arg;
+                // TODO: Check if working
+                return $"self.play({Name}.look({point}))";
+            }
+            /// <summary>
+            /// Returns a string that plays a LookAt animation [Accepts  <see cref="IMobject_Shape"/>]
+            /// </summary>
+            /// <param name="arg">Shape to look at</param>
+            /// <returns></returns>
+            public string GetLookAtAnim(object arg)
+            {
+                var shape = arg as IMobject_Shape;
+                // TODO: Check if working
+                return $"self.play({Name}.look({shape.Name}))";
+            }
+            public string GetBlinkAnim(object arg = null)
+            {
+                return $"self.play({Name}.blink())";
+            }
+            /// <summary>
+            /// Returns a string that plays an animation that makes eye contact with another pi creature [Accepts  <see cref="Mobject_PiCreature"/>]
+            /// </summary>
+            /// <param name="arg">Pi creature to look at</param>
+            /// <returns></returns>
+            public string GetMakeEyeContactAnim(object arg)
+            {
+                var shape = arg as Mobject_PiCreature;
+                // TODO: Check if working
+                return $"self.play({Name}.make_eye_contact({shape.Name}))";
+            }
+            public string GetShrugAnim(object arg = null)
+            {
+                return $"self.play({Name}.shrug())";
+            }
+            #endregion
+
+            public static string ChangeSVGColor(string color)
+            {
+                string[] SVG = System.IO.File.ReadAllLines(System.IO.Path.Combine(ManimDirectory, @"files\PiCreatures_plain.svg"));
+                SVG[6] = @"	.st1{fill:" + Colors[color] + ";}";
+
+                string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $@"ManimInteractive\");
+                System.IO.Directory.CreateDirectory(path);
+                path += $"PiCreatures_{color}.svg";
+                System.IO.File.WriteAllLines(path, SVG);
+                return path;
             }
         }
         #endregion
@@ -480,5 +879,51 @@ namespace ManimInteractive
             }
         }
         #endregion
+
+        #region Command Line
+        public static string RenderVideo(string sceneName)
+        {
+            return RenderVideo(sceneName, new ExportOptions());
+        }
+        public static string RenderVideo(string sceneName, ExportOptions options)
+        {
+            CameraConfig camera = CameraConfig.Production;
+            string cmd = $@"py -3 extract_scene.py testing\exported_scenes.py {sceneName}";
+            if (options.Preview)
+                cmd += " -p";
+            if (options.LowQuality)
+            {
+                cmd += " -l";
+                camera = CameraConfig.Low;
+            }
+            if (options.MediumQuality)
+            {
+                cmd += "-m" +
+                    "";
+                camera = CameraConfig.Medium;
+            }
+            if (options.HideProgress)
+                cmd += " -q";
+            if (options.SavePNG)
+                cmd += " -g";
+            if (options.UseTransparency)
+                cmd += " -t";
+            cmd += $" -c {options.BackgroundColor}";
+            cmd += $" -n {options.StartAtAnimation}";
+
+            Common.RunCMD("cmd.exe", cmd, System.Diagnostics.ProcessWindowStyle.Normal);
+            return $@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\{camera.ExportFolder}\{sceneName}.mp4";
+        }
+        #endregion
+    }
+
+    public class LaTeXHelper
+    {
+        public static readonly FontFamily DefaultFont = new FontFamily("BKM-cmr17");
+        public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>()
+        {
+            { "white", "#f8f9fa" },
+
+        };
     }
 }

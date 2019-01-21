@@ -90,6 +90,17 @@
                            Icon="/Assets/Icons/TextBox_16x.png"
                            LargeIcon="/Assets/Icons/TextBox_32x.png"
                            Click="NewTextboxButton_Click"/>
+                    <Fluent:Button Header="New TeX-box"
+                           x:Name="NewTeXboxButton"
+                                   IsEnabled="False"
+                           Icon="/Assets/Icons/TextBox_16x.png"
+                           LargeIcon="/Assets/Icons/TextBox_32x.png"
+                           Click="NewTeXboxButton_Click"/>
+                    <Fluent:Button Header="New Pi Creature"
+                           x:Name="NewPiCreatureButton"
+                           Icon="/Assets/Icons/PiCreature_16x.png"
+                           LargeIcon="/Assets/Icons/PiCreature_32x.png"
+                           Click="NewPiCreatureButton_Click"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
             <!--Contextual Tabs-->
@@ -138,21 +149,18 @@
                 <Fluent:RibbonGroupBox Header="Text Contents">
                     
                     <Grid MinWidth="200" Width="200" Height="{Binding TextTab.Height}">
-                        <RichTextBox Name="richTB" Width="200">
-                            <FlowDocument>
-                                <Paragraph>
-                                    <Run>Paragraph 1</Run>
-                                </Paragraph>
-                                <Paragraph>
-                                    <Run>Paragraph 2</Run>
-                                </Paragraph>
-                                <Paragraph>
-                                    <Run>Paragraph 3</Run>
-                                </Paragraph>
-                            </FlowDocument>
-                        </RichTextBox>
+                        <TextBox Name="TextObjContentBox" Width="200" Height="{Binding TextTab.Height}" AcceptsReturn="True" TextChanged="TextObjContentBox_TextChanged"/>
                     </Grid>
                     
+                </Fluent:RibbonGroupBox>
+            </Fluent:RibbonTabItem>
+            <Fluent:RibbonTabItem x:Name="TeXTab" Header="TeX" Group="{Binding Source={x:Reference texGroup}}">
+                <Fluent:RibbonGroupBox Header="LaTeX Formula">
+
+                    <Grid MinWidth="200" Width="200" Height="{Binding TextTab.Height}">
+                        <TextBox Name="TeXObjContentBox" Width="200" Height="{Binding TextTab.Height}" AcceptsReturn="True" LostFocus="TeXObjContentBox_LostFocus"/>
+                    </Grid>
+
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
 
@@ -168,6 +176,11 @@
                                      Visibility="Collapsed"
                                      Background="#A31515" 
                                      BorderBrush="#A31515" />
+                <Fluent:RibbonContextualTabGroup x:Name="texGroup"
+                                     Header="TeX Tools" 
+                                     Visibility="Collapsed"
+                                     Background="#bdd5ea" 
+                                     BorderBrush="#bdd5ea" />
             </Fluent:Ribbon.ContextualGroups>
 
             <!--StartScreen-->

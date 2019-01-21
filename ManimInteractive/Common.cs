@@ -98,4 +98,13 @@ namespace ManimInteractive
             throw new NotImplementedException();
         }
     }
+
+    public static class StringExtensions
+    {
+        public static string[] Lines(this string s)
+        {
+            string[] sep = { @"\r\n" };
+            return s.Split(sep, StringSplitOptions.None);
+        }
+    }
 }

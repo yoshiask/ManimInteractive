@@ -38,7 +38,7 @@ namespace ManimInteractive
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            #region Add Colors to ColorPicker
+            FillColorSelectBox.Items.Clear();
             foreach (KeyValuePair<string, string> pair in ManimHelper.Colors)
             {
                 FillColorSelectBox.Items.Add(new ComboBoxItem()
@@ -47,7 +47,6 @@ namespace ManimInteractive
                     Content = pair.Key
                 });
             }
-            #endregion
 
             DisplayCanvas.Width = ManimHelper.PixelWidth;
             DisplayCanvas.Height = ManimHelper.PixelHeight;
@@ -69,7 +68,6 @@ namespace ManimInteractive
             pythonScene += $"{ManimHelper.PY_TAB}def construct(self):\r\n";
 
             UIElementCollection elements = DisplayCanvas.Children;
-            int itemindex = 0;
             foreach (FrameworkElement item in elements)
             {
                 var shape = item as ManimHelper.IMobject_Shape;
@@ -78,9 +76,8 @@ namespace ManimInteractive
                     switch (shape.Visibility)
                     {
                         case Visibility.Visible:
-                            pythonScene += shape.GetPyInitializer(shape.MobjType + itemindex, ManimHelper.PY_TAB + ManimHelper.PY_TAB);
-                            pythonScene += "\r\n";
-                            itemindex++;
+                            pythonScene += shape.GetPyInitializer(ManimHelper.PY_TAB + ManimHelper.PY_TAB);
+                            pythonScene += "\r\n\r\n";
                             break;
 
                         case Visibility.Collapsed:
@@ -91,7 +88,6 @@ namespace ManimInteractive
             }
             pythonScene += $"\r\n";
 
-            itemindex = 0;
             foreach (FrameworkElement item in elements)
             {
                 var shape = item as ManimHelper.IMobject_Shape;
@@ -99,23 +95,26 @@ namespace ManimInteractive
                 {
                     if (shape.Visibility == Visibility.Visible)
                     {
-                        string name = shape.MobjType + itemindex;
                         if (shape.GetType() == typeof(ManimHelper.Mobject_Ellipse))
                         {
                             var ellipseobj = shape as ManimHelper.Mobject_Ellipse;
-                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{ellipseobj.GetShowCreationMethod(name)}\r\n";
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{ellipseobj.GetDrawBorderThenFillAnim()}\r\n";
                         }
                         else if (shape.GetType() == typeof(ManimHelper.Mobject_Rectangle))
                         {
                             var rectobj = shape as ManimHelper.Mobject_Rectangle;
-                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{rectobj.GetShowCreationMethod(name)}\r\n";
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{rectobj.GetDrawBorderThenFillAnim()}\r\n";
                         }
-                        else
+                        else if (shape.GetType() == typeof(ManimHelper.Mobject_Text))
                         {
                             var textobj = shape as ManimHelper.Mobject_Text;
-                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{textobj.GetWriteMethod(name)}\r\n";
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{textobj.GetWriteAnim()}\r\n";
                         }
-                        itemindex++;
+                        else if (shape.GetType() == typeof(ManimHelper.Mobject_PiCreature))
+                        {
+                            var piobj = shape as ManimHelper.Mobject_PiCreature;
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{piobj.GetFadeInAnim()}\r\n";
+                        }
                     }
                 }
             }
@@ -189,6 +188,7 @@ namespace ManimInteractive
                 Player.Stop();
                 IsPreviewing = false;
                 Player.MediaEnded -= Player_LoopMedia;
+                Player.MediaOpened -= Player_MediaOpened;
                 Player.Source = null;
 
                 PreviewButton.Icon = new Uri(@"pack://application:,,,/Assets/Icons/Run_16x.png");
@@ -205,21 +205,21 @@ namespace ManimInteractive
                 try
                 {
                     File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene(SceneName));
-                    Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName} -pl", ProcessWindowStyle.Normal);
+                    //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName} -pmg", ProcessWindowStyle.Normal);
+                    Uri video = new Uri(ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
+                    {
+                        LowQuality = true,
+                        Preview = true,
+                        SavePNG = true
+                    }));
 
                     Player.Stretch = Stretch.Uniform;
                     Player.MediaEnded += Player_LoopMedia;
                     Player.Visibility = Visibility.Visible;
-                    Player.Source = new Uri($@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\480p15\{SceneName}.mp4");
+                    Player.Source = video;
                     IsPreviewing = true;
 
-                    PreviewButton.Icon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_16x.png");
-                    PreviewButton.LargeIcon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_32x.png");
-                    PreviewButton.Header = "Stop Preview";
-                    DisplayCanvas.Visibility = Visibility.Collapsed;
-
-                    PlaybackPlayButton.IsEnabled = true;
-                    PlaybackStopButton.IsEnabled = true;
+                    Player.MediaOpened += Player_MediaOpened;
                 }
                 catch (DirectoryNotFoundException)
                 {
@@ -241,19 +241,24 @@ namespace ManimInteractive
         private void RenderButton_Click(object sender, RoutedEventArgs e)
         {
             File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene(SceneName));
-            Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName}", ProcessWindowStyle.Normal);
-        
+            //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName}", ProcessWindowStyle.Normal);
+            Uri video = new Uri(ManimHelper.RenderVideo(SceneName));
+
             Player.Stretch = Stretch.Uniform;
             Player.MediaEnded += Player_LoopMedia;
             Player.Visibility = Visibility.Visible;
-            Player.Source = new Uri($@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\1440p60\{SceneName}.mp4");
+            Player.Source = video;
             IsPreviewing = true;
+            
+            Player.MediaOpened += Player_MediaOpened;
+        }
 
+        private void Player_MediaOpened(object sender, RoutedEventArgs e)
+        {
             PreviewButton.Icon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_16x.png");
             PreviewButton.LargeIcon = new Uri(@"pack://application:,,,/Assets/Icons/Stop_32x.png");
             PreviewButton.Header = "Stop Preview";
             DisplayCanvas.Visibility = Visibility.Collapsed;
-
             PlaybackPlayButton.IsEnabled = true;
             PlaybackStopButton.IsEnabled = true;
         }
@@ -279,17 +284,31 @@ namespace ManimInteractive
 
         #region Shape Creation
         private int curZIndex = 99;
+        private int curID = 0;
         private void NewRectButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Rectangle.Draw("TestRectangle", DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++);
+            ManimHelper.Mobject_Rectangle.Draw("Rectangle" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++);
+            curID++;
         }
         private void NewEllipseButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Ellipse.Draw("TestEllipse", DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++);
+            ManimHelper.Mobject_Ellipse.Draw("Ellipse" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++);
+            curID++;
         }
         private void NewTextboxButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Text.Draw("TestText", DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "3blue1brown", "WHITE", 64, curZIndex++);
+            ManimHelper.Mobject_Text.Draw("Text" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "3blue1brown", "WHITE", 64, curZIndex++);
+            curID++;
+        }
+        private void NewPiCreatureButton_Click(object sender, RoutedEventArgs e)
+        {
+            ManimHelper.Mobject_PiCreature.Draw("PiCreature" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "DARK_BLUE", curZIndex++);
+            curID++;
+        }
+        private void NewTeXboxButton_Click(object sender, RoutedEventArgs e)
+        {
+            ManimHelper.Mobject_TeX.Draw("TeX" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), @"\left(x^2 + 2 \cdot x + 2\right) = 0", "WHITE", curZIndex++);
+            curID++;
         }
         #endregion
 
@@ -316,16 +335,9 @@ namespace ManimInteractive
             // Set UI
             SelectedVisual = shape;
             IsLoadingSelected = true;
-            SelectedVisual.DrawSelectionBorder(5);
+            SelectedVisual.DrawSelectionBorder();
             drawingGroup.Visibility = Visibility.Visible;
             SelectedVisual.DragStateChanged += SelectedVisual_DragStateChanged;
-            if (SelectedVisual.GetType() == typeof(ManimHelper.Mobject_Text))
-            {
-                textGroup.Visibility = Visibility.Visible;
-                var line = new System.Windows.Documents.Run((SelectedVisual as ManimHelper.Mobject_Text).TextContent);
-                var paragraph = new System.Windows.Documents.Paragraph(line);
-                richTB.Document = new System.Windows.Documents.FlowDocument(paragraph);
-            }
             UpdateDrawingToolsUI(SelectedVisual);
             IsLoadingSelected = false;
         }
@@ -335,16 +347,11 @@ namespace ManimInteractive
             {
                 //SelectedVisual.DragStateChanged -= SelectedVisual_DragStateChanged;
                 SelectedVisual.DrawSelectionBorder(0);
-
-                if (SelectedVisual.GetType() == typeof(ManimHelper.Mobject_Text))
-                {
-                    textGroup.Visibility = Visibility.Collapsed;
-                    richTB.Document = new System.Windows.Documents.FlowDocument();
-                }
-
                 SelectedVisual = null;
             }
             drawingGroup.Visibility = Visibility.Collapsed;
+            textGroup.Visibility = Visibility.Collapsed;
+            texGroup.Visibility = Visibility.Collapsed;
         }
         private void SelectedVisual_DragStateChanged(object sender, DragStateChanged e)
         {
@@ -395,6 +402,17 @@ namespace ManimInteractive
 
                 FillColorSelectBox.SelectedIndex = ManimHelper.Colors.Keys.ToList().IndexOf(item.Fill);
                 FillColorDisplay.Background = Common.BrushFromHex(ManimHelper.Colors[item.Fill]);
+
+                if (SelectedVisual.GetType() == typeof(ManimHelper.Mobject_Text))
+                {
+                    textGroup.Visibility = Visibility.Visible;
+                    TextObjContentBox.Text = (SelectedVisual as ManimHelper.Mobject_Text).TextContent;
+                }
+                else if (SelectedVisual.GetType() == typeof(ManimHelper.Mobject_TeX))
+                {
+                    texGroup.Visibility = Visibility.Visible;
+                    TeXObjContentBox.Text = (SelectedVisual as ManimHelper.Mobject_TeX).TextContent;
+                }
             }
         }
 
@@ -404,6 +422,7 @@ namespace ManimInteractive
             {
                 var newColor = (FillColorSelectBox.SelectedItem as ComboBoxItem).Content.ToString();
                 SelectedVisual.Fill = newColor;
+                
                 FillColorDisplay.Background = Common.BrushFromHex(ManimHelper.Colors[newColor]);
             }
         }
@@ -465,6 +484,21 @@ namespace ManimInteractive
                 {
                     ItemHeightBox.Text = "0";
                 }
+            }
+        }
+
+        private void TextObjContentBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoadingSelected && SelectedVisual != null)
+            {
+                (SelectedVisual as ManimHelper.Mobject_Text).TextContent = TextObjContentBox.Text;
+            }
+        }
+        private void TeXObjContentBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoadingSelected && SelectedVisual != null)
+            {
+                (SelectedVisual as ManimHelper.Mobject_TeX).TextContent = TeXObjContentBox.Text;
             }
         }
         #endregion
