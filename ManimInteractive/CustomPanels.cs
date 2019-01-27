@@ -97,6 +97,23 @@ namespace ManimInteractive
             MouseDown += Draggable_MouseDown;
             MouseUp += Draggable_MouseUp;
             MouseMove += Draggable_MouseMove;
+            IsMouseDirectlyOverChanged += Draggable_IsMouseDirectlyOverChanged;
+        }
+
+        private void Draggable_IsMouseDirectlyOverChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (!IsDraggable)
+            {
+                return;
+            }
+            if (!(bool)e.OldValue)
+            {
+                Mouse.OverrideCursor = Cursors.SizeAll;
+            }
+            else
+            {
+                Mouse.OverrideCursor = null;
+            }
         }
 
         private void Draggable_MouseMove(object sender, MouseEventArgs e)

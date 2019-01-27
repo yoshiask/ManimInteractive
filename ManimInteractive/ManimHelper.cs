@@ -44,13 +44,13 @@ namespace ManimInteractive
                 ExportFolder = exportfolder;
             }
         }
-
         public class ExportOptions
         {
             public bool Preview = false;
             public bool LowQuality = false;
             public bool MediumQuality = false;
             public bool HideProgress = false;
+            public bool SkipToLastFrame = false;
             public bool SavePNG = false;
             public bool UseTransparency = false;
             public int StartAtAnimation = 0;
@@ -128,6 +128,7 @@ namespace ManimInteractive
             public abstract string MobjType { get; }
 
             public Dictionary<string, AnimationMethod> AvailableAnimations = new Dictionary<string, AnimationMethod>();
+            public Dictionary<string, Type[]> AnimationArgs = new Dictionary<string, Type[]>();
             public delegate string AnimationMethod(object[] args);
             public abstract void LoadAnimations();
 
@@ -203,7 +204,7 @@ namespace ManimInteractive
             /// <param name="outline">Stroke color (manim)</param>
             /// <param name="fill">Fill color (manim)</param>
             /// <param name="zindex">Zindex/Arrange height</param>
-            public static void Draw(string name, Panel view, Rect rect, string outline, string fill, int zindex)
+            public static Mobject_Rectangle Draw(string name, Panel view, Rect rect, string outline, string fill, int zindex)
             {
                 var rectangle = new Rectangle()
                 {
@@ -238,6 +239,7 @@ namespace ManimInteractive
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
+                return item;
             }
             public override void DrawSelectionBorder(double thickness = 5)
             {
@@ -318,7 +320,7 @@ namespace ManimInteractive
             /// <param name="outline">Stroke color (manim)</param>
             /// <param name="fill">Fill color (manim)</param>
             /// <param name="zindex">Zindex/Arrange height</param>
-            public static void Draw(string name, Panel view, Rect rect, string outline, string fill, int zindex)
+            public static Mobject_Ellipse Draw(string name, Panel view, Rect rect, string outline, string fill, int zindex)
             {
                 var ellipse = new Ellipse()
                 {
@@ -353,6 +355,7 @@ namespace ManimInteractive
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
+                return item;
             }
             public override void DrawSelectionBorder(double thickness = 5)
             {
@@ -444,7 +447,7 @@ namespace ManimInteractive
             /// <param name="fill">Text fill color</param>
             /// <param name="fontsize">Text size</param>
             /// <param name="zindex">Zindex/Arrange height</param>
-            public static void Draw(string name, Panel view, Rect rect, string text, string fill, double fontsize, int zindex)
+            public static Mobject_Text Draw(string name, Panel view, Rect rect, string text, string fill, double fontsize, int zindex)
             {
                 var textblock = new TextBlock()
                 {
@@ -457,12 +460,18 @@ namespace ManimInteractive
                     VerticalAlignment = VerticalAlignment.Stretch,
                     IsHitTestVisible = false
                 };
+                var viewbox = new Viewbox()
+                {
+                    IsHitTestVisible = false,
+                    Stretch = Stretch.UniformToFill,
+                    Child = textblock
+                };
                 var border = new Border()
                 {
                     Background = null,
                     BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
                     BorderThickness = new Thickness(5),
-                    Child = textblock
+                    Child = viewbox
                 };
                 var item = new Mobject_Text()
                 {
@@ -483,6 +492,7 @@ namespace ManimInteractive
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
+                return item;
             }
             public override void DrawSelectionBorder(double thickness = 5)
             {
@@ -573,7 +583,7 @@ namespace ManimInteractive
             /// <param name="fill">Text fill color</param>
             /// <param name="fontsize">Text size</param>
             /// <param name="zindex">Zindex/Arrange height</param>
-            public static void Draw(string name, Panel view, Rect rect, string tex, string fill, int zindex)
+            public static Mobject_TeX Draw(string name, Panel view, Rect rect, string tex, string fill, int zindex)
             {
                 tex = ChangeFontColor(tex, fill);
                 var texblock = new WpfMath.Controls.FormulaControl()
@@ -610,6 +620,7 @@ namespace ManimInteractive
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
+                return item;
             }
             public override void DrawSelectionBorder(double thickness = 5)
             {
@@ -703,7 +714,7 @@ namespace ManimInteractive
             private Border InternalBorder;
 
             /// <summary>
-            /// Draws an Ellipse mobject in the specified view.
+            /// Draws a Pi Creature mobject in the specified view.
             /// </summary>
             /// <param name="name">Name of the mobject</param>
             /// <param name="view">The view to draw the shape in</param>
@@ -711,7 +722,7 @@ namespace ManimInteractive
             /// <param name="outline">Stroke color (manim)</param>
             /// <param name="fill">Fill color (manim)</param>
             /// <param name="zindex">Zindex/Arrange height</param>
-            public static void Draw(string name, Panel view, Rect rect, string fill, int zindex)
+            public static Mobject_PiCreature Draw(string name, Panel view, Rect rect, string fill, int zindex)
             {
                 var svg = new SharpVectors.Converters.SvgViewbox()
                 {
@@ -745,6 +756,7 @@ namespace ManimInteractive
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
+                return item;
             }
             public override void DrawSelectionBorder(double thickness = 5)
             {
@@ -784,6 +796,10 @@ namespace ManimInteractive
                 AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
                 AvailableAnimations.Add("Look", GetLookAnim);
                 AvailableAnimations.Add("LookAt", GetLookAtAnim);
+                AvailableAnimations.Add("Blink", GetBlinkAnim);
+                AvailableAnimations.Add("MakeEyeContact", GetMakeEyeContactAnim);
+                AvailableAnimations.Add("Shrug", GetShrugAnim);
+                AvailableAnimations.Add("Flip", GetFlipAnim);
             }
             public string GetFadeInAnim(object arg = null)
             {
@@ -813,7 +829,7 @@ namespace ManimInteractive
             {
                 var shape = arg as IMobject_Shape;
                 // TODO: Check if working
-                return $"self.play({Name}.look({shape.Name}))";
+                return $"self.play({Name}.look_at({shape.Name}))";
             }
             public string GetBlinkAnim(object arg = null)
             {
@@ -834,6 +850,15 @@ namespace ManimInteractive
             {
                 return $"self.play({Name}.shrug())";
             }
+            /// <summary>
+            /// Flips the shape
+            /// </summary>
+            /// <param name="arg">Direction to flip (as string)</param>
+            /// <returns></returns>
+            public string GetFlipAnim(object arg)
+            {
+                return $"self.play({Name}.flip({arg}))";
+            }
             #endregion
 
             public static string ChangeSVGColor(string color)
@@ -846,6 +871,186 @@ namespace ManimInteractive
                 path += $"PiCreatures_{color}.svg";
                 System.IO.File.WriteAllLines(path, SVG);
                 return path;
+            }
+        }
+
+        public class Mobject_Graph : IMobject_Shape
+        {
+            private string _fill;
+            public override string Fill {
+                get {
+                    return _fill;
+                }
+                set {
+                    _fill = value;
+                }
+            }
+            public override string MobjType {
+                get;
+            } = "Rectangle";
+            private Image InternalImage;
+            private Border InternalBorder;
+            public Dictionary<string, object> Config { get; set; } = new Dictionary<string, object>();
+
+            /// <summary>
+            /// Draws a Rectangle mobject in the specified view.
+            /// </summary>
+            /// <param name="name">Name of the mobject</param>
+            /// <param name="view">The view to draw the shape in</param>
+            /// <param name="rect">Relative position and size of the shape</param>
+            /// <param name="function">Python / numpy function [e.g. lambda x : (x**2)]</param>
+            /// <param name="color">Color of function on graph (manim)</param>
+            /// <param name="zindex">Zindex/Arrange height</param>
+            public static Mobject_Graph Draw(string name, Panel view, Rect rect, string function, string color, double xmin, double xmax, double ymin, double ymax, int zindex)
+            {
+                var image = new Image()
+                {
+                    //Source = new System.Windows.Media.Imaging.BitmapImage(preview),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    IsHitTestVisible = false
+                };
+                var border = new Border()
+                {
+                    Background = null,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    BorderThickness = new Thickness(5),
+                    Child = image
+                };
+                var item = new Mobject_Graph()
+                {
+                    Name = name,
+                    Children =
+                    {
+                        border
+                    },
+                    IsDraggable = true,
+                    IsHitTestVisible = true,
+                    Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    InternalImage = image,
+                    InternalBorder = border,
+                    Fill = color,
+                    Config = new Dictionary<string, object>()
+                    {
+                        { "function", function },
+                        { "function_color", color },
+                        { "center_point", 0 },
+                        { "x_min", xmin},
+                        { "x_max", xmax},
+                        { "y_min", ymin},
+                        { "y_max", ymax},
+                        { "graph_origin", "0" },
+                    },
+                };
+                item.InternalImage.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(item.RenderGraphPreview(item.Config)));
+                SetRelativeRect(item, rect);
+                view.Children.Add(item);
+                SetZIndex(item, zindex);
+                return item;
+            }
+            public override void DrawSelectionBorder(double thickness = 5)
+            {
+                if (thickness <= 0)
+                {
+                    InternalBorder.BorderThickness = new Thickness(5);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent);
+                }
+                else
+                {
+                    InternalBorder.BorderThickness = new Thickness(thickness);
+                    InternalBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Red);
+                }
+            }
+            private int curPrevID = 0;
+            public string RenderGraphPreview(Dictionary<string, object> config)
+            {
+                Config = config;
+                #region Generate a temporary scene with only the graph
+                string pythonScene = PythonSceneHeader + $"class {Name}Preview{curPrevID}(GraphScene):\r\n";
+                pythonScene += $"{PY_TAB}CONFIG = {{\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"function\" : " + config["function"] + ",\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"function_color\" : " + config["function_color"] + ",\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"center_point\" : " + config["center_point"] + ",\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"x_min\" : " + config["x_min"] + ",\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"x_max\" : " + config["x_max"] + ",\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"y_min\" : " + config["y_min"] + ",\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"y_max\" : " + config["y_max"] + ",\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}" + "\"graph_origin\" : " + config["graph_origin"] + ",\r\n";
+                pythonScene += $"{PY_TAB}}}\r\n";
+                pythonScene += $"{PY_TAB}def construct(self):\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}self.setup_axes()\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}func_graph = self.get_graph(\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}{PY_TAB}self.function,\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}{PY_TAB}self.function_color,\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB})\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}self.play(\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB}{PY_TAB}ShowCreation(func_graph, run_time = 2)\r\n";
+                pythonScene += $"{PY_TAB}{PY_TAB})\r\n";
+                #endregion
+
+                System.IO.File.WriteAllText(System.IO.Path.Combine(ManimDirectory, "interactive\\temp_graphs.py"), pythonScene);
+                RenderVideo(Name + "Preview" + curPrevID, new ExportOptions()
+                {
+                    MediumQuality = true,
+                    SavePNG = true,
+                    UseTransparency = true,
+                    SkipToLastFrame = true,
+                }, "interactive\\temp_graphs.py");
+                string path = $@"C:\Users\jjask\Videos\Manim Exports\videos\interactive\temp_graphs\images\{Name}Preview{curPrevID}.png";
+                curPrevID++;
+                return path;
+            }
+            public void UpdateGraphPreview(Dictionary<string, object> config)
+            {
+                try
+                {
+                    InternalImage.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(RenderGraphPreview(config)));
+                }
+                catch
+                {
+                    MessageBox.Show("manim failed to render the graph. Make sure the equation is a valid Python function.");
+                }
+            }
+
+            public override string GetPyInitializer(string AddToEachLine)
+            {
+                string init = $"{AddToEachLine}CONFIG = {{\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"function\" : " + Config["function"] + ",\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"function_color\" : " + Config["function_color"] + ",\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"center_point\" : " + Config["center_point"] + ",\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"x_min\" : " + Config["x_min"] + ",\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"x_max\" : " + Config["x_max"] + ",\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"y_min\" : " + Config["y_min"] + ",\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"y_max\" : " + Config["y_max"] + ",\r\n";
+                init += $"{AddToEachLine}{PY_TAB}" + "\"graph_origin\" : " + Config["graph_origin"] + ",\r\n";
+                init += $"{AddToEachLine}}}\r\n";
+                return init;
+            }
+            public override void LoadAnimations()
+            {
+                AvailableAnimations.Add("ShowCreation", GetShowCreationAnim);
+                AvailableAnimations.Add("Transform", GetTransformAnim);
+            }
+            public string GetShowCreationAnim(object arg)
+            {
+                string init = $"{(string)arg}self.setup_axes()\r\n";
+                init += $"{(string)arg}func_graph = self.get_graph(\r\n";
+                init += $"{(string)arg}{PY_TAB}self.function,\r\n";
+                init += $"{(string)arg}{PY_TAB}self.function_color,\r\n";
+                init += $"{(string)arg})\r\n";
+                init += $"{(string)arg}self.play(\r\n";
+                init += $"{(string)arg}{PY_TAB}ShowCreation(func_graph, run_time = 2)\r\n";
+                init += $"{(string)arg})";
+                return init;
+            }
+            /// <summary>
+            /// 
+            /// </summary>
+            /// <param name="args">Graph to morph into</param>
+            /// <returns></returns>
+            public string GetTransformAnim(object arg)
+            {
+                return $"self.play(Transform({Name}, {arg}))";
             }
         }
         #endregion
@@ -885,10 +1090,10 @@ namespace ManimInteractive
         {
             return RenderVideo(sceneName, new ExportOptions());
         }
-        public static string RenderVideo(string sceneName, ExportOptions options)
+        public static string RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
         {
             CameraConfig camera = CameraConfig.Production;
-            string cmd = $@"py -3 extract_scene.py testing\exported_scenes.py {sceneName}";
+            string cmd = $"py -3 extract_scene.py {module}.py {sceneName}";
             if (options.Preview)
                 cmd += " -p";
             if (options.LowQuality)
@@ -898,12 +1103,14 @@ namespace ManimInteractive
             }
             if (options.MediumQuality)
             {
-                cmd += "-m" +
+                cmd += " -m" +
                     "";
                 camera = CameraConfig.Medium;
             }
             if (options.HideProgress)
                 cmd += " -q";
+            if (options.SkipToLastFrame)
+                cmd += " -s";
             if (options.SavePNG)
                 cmd += " -g";
             if (options.UseTransparency)
@@ -912,7 +1119,7 @@ namespace ManimInteractive
             cmd += $" -n {options.StartAtAnimation}";
 
             Common.RunCMD("cmd.exe", cmd, System.Diagnostics.ProcessWindowStyle.Normal);
-            return $@"C:\Users\jjask\Videos\Manim Exports\videos\testing\exported_scenes\{camera.ExportFolder}\{sceneName}.mp4";
+            return $@"C:\Users\jjask\Videos\Manim Exports\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4";
         }
         #endregion
     }

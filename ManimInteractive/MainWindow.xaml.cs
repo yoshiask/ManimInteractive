@@ -52,6 +52,7 @@ namespace ManimInteractive
             DisplayCanvas.Height = ManimHelper.PixelHeight;
 
             ReloadManimLocationBox();
+            Directory.CreateDirectory(System.IO.Path.Combine(ManimHelper.ManimDirectory, @"interactive"));
 
             foreach (string drawing in ManimHelper.ManimDrawings)
             {
@@ -64,14 +65,19 @@ namespace ManimInteractive
 
         private string GenerateScene(string sceneName)
         {
-            string pythonScene = ManimHelper.PythonSceneHeader + $"class {SceneName}(Scene):\r\n";
+            string pythonScene = ManimHelper.PythonSceneHeader + $"class {SceneName}(GraphScene):\r\n";
+            if (SceneGraph != null)
+            {
+                pythonScene += SceneGraph.GetPyInitializer(ManimHelper.PY_TAB);
+            }
+
             pythonScene += $"{ManimHelper.PY_TAB}def construct(self):\r\n";
 
             UIElementCollection elements = DisplayCanvas.Children;
             foreach (FrameworkElement item in elements)
             {
                 var shape = item as ManimHelper.IMobject_Shape;
-                if (shape != null)
+                if (shape != null && shape as ManimHelper.Mobject_Graph == null)
                 {
                     switch (shape.Visibility)
                     {
@@ -114,6 +120,12 @@ namespace ManimInteractive
                         {
                             var piobj = shape as ManimHelper.Mobject_PiCreature;
                             pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{piobj.GetFadeInAnim()}\r\n";
+                        }
+                        else if (shape.GetType() == typeof(ManimHelper.Mobject_Graph))
+                        {
+                            var graphobj = shape as ManimHelper.Mobject_Graph;
+                            pythonScene += graphobj.GetShowCreationAnim($"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}");
+                            pythonScene += "\r\n";
                         }
                     }
                 }
@@ -187,9 +199,7 @@ namespace ManimInteractive
             {
                 Player.Stop();
                 IsPreviewing = false;
-                Player.MediaEnded -= Player_LoopMedia;
-                Player.MediaOpened -= Player_MediaOpened;
-                Player.Source = null;
+                //Player.Source = null;
 
                 PreviewButton.Icon = new Uri(@"pack://application:,,,/Assets/Icons/Run_16x.png");
                 PreviewButton.LargeIcon = new Uri(@"pack://application:,,,/Assets/Icons/Run_32x.png");
@@ -204,22 +214,20 @@ namespace ManimInteractive
             {
                 try
                 {
-                    File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene(SceneName));
+                    File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py"), GenerateScene(SceneName));
                     //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName} -pmg", ProcessWindowStyle.Normal);
-                    Uri video = new Uri(ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
+                    string vpath = ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
                     {
                         LowQuality = true,
                         Preview = true,
                         SavePNG = true
-                    }));
+                    });
+                    Console.WriteLine(vpath);
 
                     Player.Stretch = Stretch.Uniform;
-                    Player.MediaEnded += Player_LoopMedia;
                     Player.Visibility = Visibility.Visible;
-                    Player.Source = video;
-                    IsPreviewing = true;
-
-                    Player.MediaOpened += Player_MediaOpened;
+                    Player.Source = new Uri(vpath, UriKind.Absolute);
+                    Player.Play();
                 }
                 catch (DirectoryNotFoundException)
                 {
@@ -232,25 +240,31 @@ namespace ManimInteractive
             }
         }
 
+        private void Player_MediaFailed(object sender, ExceptionRoutedEventArgs e)
+        {
+            Console.WriteLine("Failed to load preview from " + Player.Source.LocalPath);
+            Console.WriteLine("\tError: " + e.ErrorException);
+        }
+
         private void Player_LoopMedia(object sender, RoutedEventArgs e)
         {
-            Player.Rewind();
+            Player.Stop();
             Player.Play();
         }
 
         private void RenderButton_Click(object sender, RoutedEventArgs e)
         {
-            File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "testing\\exported_scenes.py"), GenerateScene(SceneName));
+            File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py"), GenerateScene(SceneName));
             //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName}", ProcessWindowStyle.Normal);
             Uri video = new Uri(ManimHelper.RenderVideo(SceneName));
 
+            Player.Stop();
             Player.Stretch = Stretch.Uniform;
             Player.MediaEnded += Player_LoopMedia;
             Player.Visibility = Visibility.Visible;
             Player.Source = video;
             IsPreviewing = true;
-            
-            Player.MediaOpened += Player_MediaOpened;
+            Player.Play();
         }
 
         private void Player_MediaOpened(object sender, RoutedEventArgs e)
@@ -261,13 +275,16 @@ namespace ManimInteractive
             DisplayCanvas.Visibility = Visibility.Collapsed;
             PlaybackPlayButton.IsEnabled = true;
             PlaybackStopButton.IsEnabled = true;
+            IsPreviewing = true;
+            IsPlaying = true;
         }
 
+        private bool IsPlaying = false;
         private void PlaybackPlayButton_Click(object sender, RoutedEventArgs e)
         {
-            if (Player.IsPlaying)
+            if (IsPlaying)
             {
-                Player.Rewind();
+                Player.Stop();
                 Player.Play();
             }
             else
@@ -278,7 +295,8 @@ namespace ManimInteractive
 
         private void PlaybackStopButton_Click(object sender, RoutedEventArgs e)
         {
-            Player.PausePlayback();
+            Player.Pause();
+            IsPlaying = false;
         }
         #endregion
 
@@ -287,28 +305,37 @@ namespace ManimInteractive
         private int curID = 0;
         private void NewRectButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Rectangle.Draw("Rectangle" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++);
+            SelectMobject(ManimHelper.Mobject_Rectangle.Draw("Rectangle" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++));
             curID++;
         }
         private void NewEllipseButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Ellipse.Draw("Ellipse" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++);
+            SelectMobject(ManimHelper.Mobject_Ellipse.Draw("Ellipse" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "WHITE", "YELLOW_E", curZIndex++));
             curID++;
         }
         private void NewTextboxButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_Text.Draw("Text" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "3blue1brown", "WHITE", 64, curZIndex++);
+            SelectMobject(ManimHelper.Mobject_Text.Draw("Text" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "3blue1brown", "WHITE", 64, curZIndex++));
             curID++;
         }
         private void NewPiCreatureButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_PiCreature.Draw("PiCreature" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "DARK_BLUE", curZIndex++);
+            SelectMobject(ManimHelper.Mobject_PiCreature.Draw("PiCreature" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), "DARK_BLUE", curZIndex++));
             curID++;
         }
         private void NewTeXboxButton_Click(object sender, RoutedEventArgs e)
         {
-            ManimHelper.Mobject_TeX.Draw("TeX" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), @"\left(x^2 + 2 \cdot x + 2\right) = 0", "WHITE", curZIndex++);
+            SelectMobject(ManimHelper.Mobject_TeX.Draw("TeX" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), @"\left(x^2 + 2 \cdot x + 2\right) = 0", "WHITE", curZIndex++));
             curID++;
+        }
+
+        private ManimHelper.Mobject_Graph SceneGraph;
+        private void NewGraphButton_Click(object sender, RoutedEventArgs e)
+        {
+            SceneGraph = ManimHelper.Mobject_Graph.Draw("Graph" + curID, DisplayCanvas, new Rect(0.5, 0.5, 1.0, 1.0), "lambda x : (np.sin(x**2))", "DARK_BLUE", -Math.PI, Math.PI, -3, 3, curZIndex++);
+            SelectMobject(SceneGraph);
+            curID++;
+            NewGraphButton.IsEnabled = false;
         }
         #endregion
 
@@ -345,13 +372,13 @@ namespace ManimInteractive
         {
             if (SelectedVisual != null)
             {
-                //SelectedVisual.DragStateChanged -= SelectedVisual_DragStateChanged;
                 SelectedVisual.DrawSelectionBorder(0);
                 SelectedVisual = null;
             }
-            drawingGroup.Visibility = Visibility.Collapsed;
-            textGroup.Visibility = Visibility.Collapsed;
-            texGroup.Visibility = Visibility.Collapsed;
+            foreach (Fluent.RibbonContextualTabGroup group in MainRibbon.ContextualGroups)
+            {
+                group.Visibility = Visibility.Collapsed;
+            }
         }
         private void SelectedVisual_DragStateChanged(object sender, DragStateChanged e)
         {
@@ -364,6 +391,10 @@ namespace ManimInteractive
         {
             var obj = SelectedVisual;
             Deselect();
+            if (obj.GetType() == typeof(ManimHelper.Mobject_Graph))
+            {
+                NewGraphButton.IsEnabled = true;
+            }
             DisplayCanvas.Children.Remove(obj);
             obj = null;
         }
@@ -412,6 +443,16 @@ namespace ManimInteractive
                 {
                     texGroup.Visibility = Visibility.Visible;
                     TeXObjContentBox.Text = (SelectedVisual as ManimHelper.Mobject_TeX).TextContent;
+                }
+                else if (SelectedVisual.GetType() == typeof(ManimHelper.Mobject_Graph))
+                {
+                    graphGroup.Visibility = Visibility.Visible;
+                    var graph = (SelectedVisual as ManimHelper.Mobject_Graph);
+                    GraphEquationContentBox.Text = graph.Config["function"].ToString();
+                    GraphXMinBox.Text = graph.Config["x_min"].ToString();
+                    GraphXMaxBox.Text = graph.Config["x_max"].ToString();
+                    GraphYMinBox.Text = graph.Config["y_min"].ToString();
+                    GraphYMaxBox.Text = graph.Config["y_max"].ToString();
                 }
             }
         }
@@ -501,9 +542,25 @@ namespace ManimInteractive
                 (SelectedVisual as ManimHelper.Mobject_TeX).TextContent = TeXObjContentBox.Text;
             }
         }
+
+        private void RenderGraphPreviewButton_Click(object sender, RoutedEventArgs e)
+        {
+            var graph = SelectedVisual as ManimHelper.Mobject_Graph;
+            graph.UpdateGraphPreview(new Dictionary<string, object>()
+            {
+                { "function", GraphEquationContentBox.Text },
+                { "function_color", (FillColorSelectBox.SelectedItem as ComboBoxItem).Content.ToString() },
+                { "center_point", 0 },
+                { "x_min", GraphXMinBox.Text},
+                { "x_max", GraphXMaxBox.Text},
+                { "y_min", GraphYMinBox.Text},
+                { "y_max", GraphYMaxBox.Text},
+                { "graph_origin", "0" },
+            });
+        }
         #endregion
 
-        #region Manim Locations
+        #region Manim Location
         private void LocateManimButton_Click(object sender, RoutedEventArgs e)
         {
             ShowManimLocator();

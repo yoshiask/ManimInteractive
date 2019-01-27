@@ -11,6 +11,7 @@
         xmlns:Fluent="urn:fluent-ribbon"
                      xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
                      mc:Ignorable="d"
+                     xmlns:media="System.Windows.Media"
         Icon="/Assets/Icons/3b1b_logo.png"
         Title="Manim Interactive" Height="600" Width="800" WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Loaded="Window_Loaded">
@@ -96,11 +97,23 @@
                            Icon="/Assets/Icons/TextBox_16x.png"
                            LargeIcon="/Assets/Icons/TextBox_32x.png"
                            Click="NewTeXboxButton_Click"/>
+                    <Fluent:Button Header="New Graph"
+                           x:Name="NewGraphButton"
+                           Icon="/Assets/Icons/PiCreature_16x.png"
+                           LargeIcon="/Assets/Icons/PiCreature_32x.png"
+                           Click="NewGraphButton_Click"/>
                     <Fluent:Button Header="New Pi Creature"
                            x:Name="NewPiCreatureButton"
                            Icon="/Assets/Icons/PiCreature_16x.png"
                            LargeIcon="/Assets/Icons/PiCreature_32x.png"
                            Click="NewPiCreatureButton_Click"/>
+                </Fluent:RibbonGroupBox>
+            </Fluent:RibbonTabItem>
+            <Fluent:RibbonTabItem Header="Animations">
+                <Fluent:RibbonGroupBox Header="Animation">
+                    <Fluent:Button Header="Morph"
+                           Icon="/Assets/Icons/Morph_16x.png"
+                           LargeIcon="/Assets/Icons/Morph_32x.png"/>
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
             <!--Contextual Tabs-->
@@ -163,6 +176,29 @@
 
                 </Fluent:RibbonGroupBox>
             </Fluent:RibbonTabItem>
+            <Fluent:RibbonTabItem x:Name="GraphTab" Header="Graph" Group="{Binding Source={x:Reference graphGroup}}">
+                <Fluent:RibbonGroupBox Header="Equation">
+                    <StackPanel MinWidth="200" Orientation="Horizontal">
+
+                        <StackPanel  MinWidth="200" Width="200" Orientation="Vertical">
+                            <TextBox Name="GraphEquationContentBox" Width="200" AcceptsReturn="False" ToolTip="Graph Eqation" />
+                            <TextBox Name="GraphNameBox" Width="200" AcceptsReturn="False" ToolTip="Object Name" />
+                        </StackPanel>
+                        <StackPanel  MinWidth="200" Width="200" Orientation="Vertical">
+                            <TextBox Name="GraphXMinBox" Width="200" AcceptsReturn="False" ToolTip="x Minimum" />
+                            <TextBox Name="GraphXMaxBox" Width="200" AcceptsReturn="False" ToolTip="x Maximum" />
+                            <TextBox Name="GraphYMinBox" Width="200" AcceptsReturn="False" ToolTip="y Minimum" />
+                            <TextBox Name="GraphYMaxBox" Width="200" AcceptsReturn="False" ToolTip="y Maximum" />
+                        </StackPanel>
+
+                    </StackPanel>
+                </Fluent:RibbonGroupBox>
+                <Fluent:RibbonGroupBox Header="Viewport Preview">
+                    <Fluent:Button x:Name="RenderGraphPreviewButton" Header="Render Graph Preview" Click="RenderGraphPreviewButton_Click"
+                                   Icon="/Assets/Icons/Play_16x.png"
+                                   LargeIcon="/Assets/Icons/Play_32x.png"/>
+                </Fluent:RibbonGroupBox>
+            </Fluent:RibbonTabItem>
 
             <!--Contextual Tab Groups-->
             <Fluent:Ribbon.ContextualGroups>
@@ -181,6 +217,11 @@
                                      Visibility="Collapsed"
                                      Background="#bdd5ea" 
                                      BorderBrush="#bdd5ea" />
+                <Fluent:RibbonContextualTabGroup x:Name="graphGroup"
+                                     Header="Graph Tools" 
+                                     Visibility="Collapsed"
+                                     Background="#6ce26c" 
+                                     BorderBrush="#6ce26c" />
             </Fluent:Ribbon.ContextualGroups>
 
             <!--StartScreen-->
@@ -215,7 +256,8 @@
                                 local:Draggable.MouseDown="DisplayCanvas_MouseDown"
                                 local:Draggable.MouseUp="DisplayCanvas_MouseUp"/>
             </Viewbox>
-            <mpv:MediaElementWrapper x:Name="Player" Visibility="Collapsed"/>
+            <MediaElement x:Name="Player" Visibility="Collapsed" LoadedBehavior="Manual"
+                          MediaOpened="Player_MediaOpened" MediaEnded="Player_LoopMedia" MediaFailed="Player_MediaFailed"/>
         </Grid>
     </Grid>
 </Fluent:RibbonWindow>
