@@ -219,7 +219,6 @@ namespace ManimInteractive
                     string vpath = ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
                     {
                         LowQuality = true,
-                        Preview = true,
                         SavePNG = true
                     });
                     Console.WriteLine(vpath);

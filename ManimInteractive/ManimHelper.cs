@@ -116,6 +116,7 @@ namespace ManimInteractive
             { "ORANGE", "#FF862F" },
         };
         public static string ManimDirectory { get; set; } = @"C:\Users\jjask\Documents\manim\";
+        public static string ManimLibDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "manimlib");
 
         #region Shapes
         public abstract class IMobject_Shape : Draggable
@@ -727,7 +728,7 @@ namespace ManimInteractive
                 var svg = new SharpVectors.Converters.SvgViewbox()
                 {
                     Stretch = Stretch.Uniform,
-                    Source = new Uri(System.IO.Path.Combine(ManimDirectory, @"files\PiCreatures_plain.svg")),
+                    Source = new Uri(System.IO.Path.Combine(ManimLibDirectory, @"files\PiCreatures_plain.svg")),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     VerticalAlignment = VerticalAlignment.Stretch,
                     IsHitTestVisible = false
@@ -863,7 +864,7 @@ namespace ManimInteractive
 
             public static string ChangeSVGColor(string color)
             {
-                string[] SVG = System.IO.File.ReadAllLines(System.IO.Path.Combine(ManimDirectory, @"files\PiCreatures_plain.svg"));
+                string[] SVG = System.IO.File.ReadAllLines(System.IO.Path.Combine(ManimLibDirectory, @"files\PiCreatures_plain.svg"));
                 SVG[6] = @"	.st1{fill:" + Colors[color] + ";}";
 
                 string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $@"ManimInteractive\");
@@ -966,7 +967,8 @@ namespace ManimInteractive
             {
                 Config = config;
                 #region Generate a temporary scene with only the graph
-                string pythonScene = PythonSceneHeader + $"class {Name}Preview{curPrevID}(GraphScene):\r\n";
+                string ClassName = $"{Name}Preview{curPrevID}";
+                string pythonScene = PythonSceneHeader + $"class {ClassName}(GraphScene):\r\n";
                 pythonScene += $"{PY_TAB}CONFIG = {{\r\n";
                 pythonScene += $"{PY_TAB}{PY_TAB}" + "\"function\" : " + config["function"] + ",\r\n";
                 pythonScene += $"{PY_TAB}{PY_TAB}" + "\"function_color\" : " + config["function_color"] + ",\r\n";
@@ -987,6 +989,7 @@ namespace ManimInteractive
                 pythonScene += $"{PY_TAB}{PY_TAB}{PY_TAB}ShowCreation(func_graph, run_time = 2)\r\n";
                 pythonScene += $"{PY_TAB}{PY_TAB})\r\n";
                 #endregion
+                Console.WriteLine("Saving \"\r\n" + pythonScene + "\"\r\nto " + System.IO.Path.Combine(ManimDirectory, "interactive\\temp_graphs.py"));
 
                 System.IO.File.WriteAllText(System.IO.Path.Combine(ManimDirectory, "interactive\\temp_graphs.py"), pythonScene);
                 RenderVideo(Name + "Preview" + curPrevID, new ExportOptions()
@@ -995,8 +998,10 @@ namespace ManimInteractive
                     SavePNG = true,
                     UseTransparency = true,
                     SkipToLastFrame = true,
-                }, "interactive\\temp_graphs.py");
-                string path = $@"C:\Users\jjask\Videos\Manim Exports\videos\interactive\temp_graphs\images\{Name}Preview{curPrevID}.png";
+                }, "interactive\\temp_graphs");
+                string path = ManimDirectory + $@"media\videos\interactive\temp_graphs\images\{ClassName}.png";
+                Console.WriteLine("Saving preview... | " + path);
+                //string path = $@"C:\Users\jjask\Videos\Manim Exports\videos\interactive\temp_graphs\images\{Name}Preview{curPrevID}.png";
                 curPrevID++;
                 return path;
             }
@@ -1062,7 +1067,7 @@ namespace ManimInteractive
                 if (_drawings == null && ManimDirectory != "")
                 {
                     _drawings = new List<string>();
-                    string path = System.IO.Path.Combine(ManimDirectory, @"mobject\svg\drawings.py");
+                    string path = System.IO.Path.Combine(ManimLibDirectory, @"mobject\svg\drawings.py");
                     var script = System.IO.File.ReadAllLines(path).ToList();
                     foreach (string line in script)
                     {
@@ -1093,7 +1098,7 @@ namespace ManimInteractive
         public static string RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
         {
             CameraConfig camera = CameraConfig.Production;
-            string cmd = $"py -3 extract_scene.py {module}.py {sceneName}";
+            string cmd = $"py -3 manim.py {module}.py {sceneName}";
             if (options.Preview)
                 cmd += " -p";
             if (options.LowQuality)
@@ -1118,8 +1123,9 @@ namespace ManimInteractive
             cmd += $" -c {options.BackgroundColor}";
             cmd += $" -n {options.StartAtAnimation}";
 
+            Console.WriteLine("Running... | " + cmd);
             Common.RunCMD("cmd.exe", cmd, System.Diagnostics.ProcessWindowStyle.Normal);
-            return $@"C:\Users\jjask\Videos\Manim Exports\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4";
+            return ManimDirectory + $@"media\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4";
         }
         #endregion
     }
