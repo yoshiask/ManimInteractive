@@ -1091,11 +1091,11 @@ namespace ManimInteractive
         #endregion
 
         #region Command Line
-        public static string RenderVideo(string sceneName)
+        public static async Task<string> RenderVideo(string sceneName)
         {
-            return RenderVideo(sceneName, new ExportOptions());
+            return await RenderVideo(sceneName, new ExportOptions());
         }
-        public static string RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
+        public static async Task<string> RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
         {
             CameraConfig camera = CameraConfig.Production;
             string cmd = $"py -3 manim.py {module}.py {sceneName}";
@@ -1124,7 +1124,11 @@ namespace ManimInteractive
             cmd += $" -n {options.StartAtAnimation}";
 
             Console.WriteLine("Running... | " + cmd);
-            Common.RunCMD("cmd.exe", cmd, System.Diagnostics.ProcessWindowStyle.Normal);
+            var result = await Common.RunCMD("cmd.exe", cmd);
+            if (result.ExitCode != 0)
+            {
+                throw new Exception("An unknown error occured within manim");
+            }
             return ManimDirectory + $@"media\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4";
         }
         #endregion

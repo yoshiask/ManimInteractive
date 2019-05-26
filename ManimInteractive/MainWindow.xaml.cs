@@ -193,7 +193,7 @@ namespace ManimInteractive
 
         #region Media Playback
         bool IsPreviewing = false;
-        private void PreviewButton_Click(object sender, RoutedEventArgs e)
+        private async void PreviewButton_Click(object sender, RoutedEventArgs e)
         {
             if (IsPreviewing)
             {
@@ -216,7 +216,7 @@ namespace ManimInteractive
                 {
                     File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py"), GenerateScene(SceneName));
                     //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName} -pmg", ProcessWindowStyle.Normal);
-                    string vpath = ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
+                    string vpath = await ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
                     {
                         LowQuality = true,
                         SavePNG = true
@@ -251,11 +251,11 @@ namespace ManimInteractive
             Player.Play();
         }
 
-        private void RenderButton_Click(object sender, RoutedEventArgs e)
+        private async void RenderButton_Click(object sender, RoutedEventArgs e)
         {
             File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py"), GenerateScene(SceneName));
             //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName}", ProcessWindowStyle.Normal);
-            Uri video = new Uri(ManimHelper.RenderVideo(SceneName));
+            Uri video = new Uri(await ManimHelper.RenderVideo(SceneName));
 
             Player.Stop();
             Player.Stretch = Stretch.Uniform;
