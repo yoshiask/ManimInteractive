@@ -93,7 +93,7 @@
                            Click="NewTextboxButton_Click"/>
                     <Fluent:Button Header="New TeX-box"
                            x:Name="NewTeXboxButton"
-                                   IsEnabled="False"
+                                   IsEnabled="True"
                            Icon="/Assets/Icons/TextBox_16x.png"
                            LargeIcon="/Assets/Icons/TextBox_32x.png"
                            Click="NewTeXboxButton_Click"/>

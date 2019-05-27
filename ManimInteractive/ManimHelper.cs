@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using WpfMath;
 
 namespace ManimInteractive
 {
@@ -117,6 +119,7 @@ namespace ManimInteractive
         };
         public static string ManimDirectory { get; set; } = @"C:\Users\jjask\Documents\manim\";
         public static string ManimLibDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "manimlib");
+        public static string InteractiveDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "interactive");
 
         #region Shapes
         public abstract class IMobject_Shape : Draggable
@@ -548,31 +551,51 @@ namespace ManimInteractive
 
         public class Mobject_TeX : IMobject_Shape
         {
-            private string _fill;
+            private string _fill = "WHITE";
             public override string Fill {
                 get {
                     return _fill;
                 }
                 set {
                     _fill = value;
-                    InternalBlock.Formula = ChangeFontColor(TextContent, value);
+                    RenderLaTeX(TextContent, Colors[value]);
                 }
             }
             public override string MobjType {
                 get;
             } = "TexMobject";
-            private string _text = "";
+            private string _text = "x^2=0";
             public string TextContent {
                 get {
                     return _text;
                 }
                 set {
                     _text = value;
-                    InternalBlock.Formula = ChangeFontColor(value, Fill);
+                    InternalBlock.Source = RenderLaTeX(value, Fill);
                 }
             }
-            private WpfMath.Controls.FormulaControl InternalBlock;
+            private Image InternalBlock;
             private Border InternalBorder;
+
+            /// <summary>
+            /// Renders a LaTeX equation using the specified color
+            /// </summary>
+            /// <param name="latex">LaTeX Equation to render</param>
+            /// <param name="color">Text color (HEX)</param>
+            /// <returns></returns>
+            public static BitmapSource RenderLaTeX(string latex, string color)
+            {
+                var parser = new TexFormulaParser();
+                var formula = parser.Parse(latex);
+                formula.SetForeground(Common.BrushFromHex(color));
+                //formula.SetBackground(new SolidColorBrush(System.Windows.Media.Colors.White));
+                return formula.GetRenderer(TexStyle.Display, 100.0, LaTeXHelper.DefaultFont.Source).RenderToBitmap(0, 0);
+                //var pngBytes = formula.RenderToPng(100.0, 0.0, 0.0, LaTeXHelper.DefaultFont.Source);
+                //string imgpath = System.IO.Path.Combine(InteractiveDirectory, $"temp_latex//{Guid.NewGuid()}.png");
+                //System.IO.Directory.CreateDirectory(System.IO.Path.Combine(InteractiveDirectory, "temp_latex"));
+                //System.IO.File.WriteAllBytes(imgpath, pngBytes);
+                //return imgpath;
+            }
 
             /// <summary>
             /// Draws a TeX mobject in the specified view.
@@ -580,27 +603,21 @@ namespace ManimInteractive
             /// <param name="name">Name of the mobject</param>
             /// <param name="view">Panel to draw in</param>
             /// <param name="rect">Relative sizing and location</param>
-            /// <param name="text">TeX / LaTeX</param>
+            /// <param name="text">LaTeX equation</param>
             /// <param name="fill">Text fill color</param>
-            /// <param name="fontsize">Text size</param>
             /// <param name="zindex">Zindex/Arrange height</param>
             public static Mobject_TeX Draw(string name, Panel view, Rect rect, string tex, string fill, int zindex)
             {
-                tex = ChangeFontColor(tex, fill);
-                var texblock = new WpfMath.Controls.FormulaControl()
+                var image = new Image
                 {
-                    Formula = tex,
-                    Foreground = Common.BrushFromHex(Colors[fill]),
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    VerticalAlignment = VerticalAlignment.Stretch,
-                    IsHitTestVisible = false,
+                    Source = RenderLaTeX(tex, Colors[fill])
                 };
                 var border = new Border()
                 {
                     Background = null,
                     BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
                     BorderThickness = new Thickness(5),
-                    Child = texblock
+                    Child = image
                 };
                 var item = new Mobject_TeX()
                 {
@@ -612,17 +629,19 @@ namespace ManimInteractive
                     IsDraggable = true,
                     IsHitTestVisible = true,
                     Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
-                    InternalBlock = texblock,
+                    InternalBlock = image,
                     InternalBorder = border,
                     Fill = fill,
                     TextContent = tex,
                 };
+
                 item.LoadAnimations();
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
             }
+
             public override void DrawSelectionBorder(double thickness = 5)
             {
                 if (thickness <= 0)
@@ -668,7 +687,7 @@ namespace ManimInteractive
                 }
 
                 string init = $"{AddToEachLine}{Name} = TexMobject(\r\n";
-                init += $"{AddToEachLine}{PY_TAB}@\"{TextContent}\"\r\n";
+                init += $"{AddToEachLine}{PY_TAB}\"{LaTeXHelper.EscapeLaTeX(TextContent)}\"\r\n";
                 //init += $"{PY_TAB}text_to_color_map={{\"{TextContent}\"}}";
                 init += $"{AddToEachLine})\r\n";
 
@@ -1142,5 +1161,18 @@ namespace ManimInteractive
             { "white", "#f8f9fa" },
 
         };
+
+        public static string EscapeLaTeX(string latex)
+        {
+            string esc = "";
+            foreach (char ch in latex.ToArray())
+            {
+                if (ch == '\\')
+                    esc += @"\\";
+                else
+                    esc += ch;
+            }
+            return esc;
+        }
     }
 }
