@@ -34,6 +34,12 @@ namespace ManimInteractive
         public MainWindow()
         {
             InitializeComponent();
+
+            if (Environment.GetEnvironmentVariable("MANIM_PATH") == null)
+                Environment.SetEnvironmentVariable("MANIM_PATH", 
+                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "manim"),
+                    EnvironmentVariableTarget.User
+                );
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -334,9 +340,9 @@ namespace ManimInteractive
         }
 
         private ManimHelper.Mobject_Graph SceneGraph;
-        private void NewGraphButton_Click(object sender, RoutedEventArgs e)
+        private async void NewGraphButton_Click(object sender, RoutedEventArgs e)
         {
-            SceneGraph = ManimHelper.Mobject_Graph.Draw("Graph" + curID, DisplayCanvas, new Rect(0.5, 0.5, 1.0, 1.0), "lambda x : (np.sin(x**2))", "DARK_BLUE", -Math.PI, Math.PI, -3, 3, curZIndex++);
+            SceneGraph = await ManimHelper.Mobject_Graph.Draw("Graph" + curID, DisplayCanvas, new Rect(0.5, 0.5, 1.0, 1.0), "lambda x : (np.sin(x**2))", "DARK_BLUE", -Math.PI, Math.PI, -3, 3, curZIndex++);
             SelectMobject(SceneGraph);
             curID++;
             NewGraphButton.IsEnabled = false;
