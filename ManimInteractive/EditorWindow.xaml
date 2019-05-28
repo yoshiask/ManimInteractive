@@ -1,0 +1,54 @@
+﻿<RibbonWindow
+        x:Class="ManimInteractive.EditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow"
+        x:Name="EditorWindowPane"
+        Width="640" Height="480">
+
+    <Grid x:Name="LayoutRoot">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Ribbon x:Name="Ribbon" Title="Ribbon Title">
+            <Ribbon.HelpPaneContent>
+                <RibbonButton SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card.png" />
+            </Ribbon.HelpPaneContent>
+            <Ribbon.QuickAccessToolBar>
+                <RibbonQuickAccessToolBar >
+                    <RibbonButton x:Name="QATButton1" 
+                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png" />
+                    <RibbonButton x:Name="QATButton2" 
+                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png" />
+                </RibbonQuickAccessToolBar>
+            </Ribbon.QuickAccessToolBar>
+            <Ribbon.ApplicationMenu>
+                <RibbonApplicationMenu SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png">
+                    <RibbonApplicationMenuItem Header="Hello _Ribbon"
+                                                      x:Name="MenuItem1"
+                                                      ImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card.png"/>
+                </RibbonApplicationMenu>
+            </Ribbon.ApplicationMenu>
+            <RibbonTab x:Name="HomeTab" 
+                              Header="Home">
+                <RibbonGroup x:Name="Group1" 
+                                    Header="Group1">
+                    <RibbonButton x:Name="Button1"
+                                         LargeImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card.png"
+                                         Label="Button1" />
+                    <RibbonButton x:Name="Button2"
+                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png"
+                                         Label="Button2" />
+                    <RibbonButton x:Name="Button3"
+                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png"
+                                         Label="Button3" />
+                    <RibbonButton x:Name="Button4"
+                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png"
+                                         Label="Button4" />
+                </RibbonGroup>
+            </RibbonTab>
+        </Ribbon>
+    </Grid>
+</RibbonWindow>
