@@ -2,9 +2,12 @@
         x:Class="ManimInteractive.EditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow"
+    xmlns:local="clr-namespace:ManimInteractive"
+    Title="Editor | Manim Interactive"
         x:Name="EditorWindowPane"
-        Width="640" Height="480">
+        WindowState="Maximized"
+        Icon="/Assets/Icons/3b1b_logo.png"
+        Width="800" Height="600" Loaded="Window_Loaded">
 
     <Grid x:Name="LayoutRoot">
         <Grid.RowDefinitions>
@@ -12,9 +15,10 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Ribbon x:Name="Ribbon" Title="Ribbon Title">
+        <!--TODO: Re-export icons at 24px and 48px-->
+        <Ribbon x:Name="MainRibbon" Title="Ribbon">
             <Ribbon.HelpPaneContent>
-                <RibbonButton SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card.png" />
+                <RibbonButton SmallImageSource="/Assets/Icons/Find_32x.png" />
             </Ribbon.HelpPaneContent>
             <Ribbon.QuickAccessToolBar>
                 <RibbonQuickAccessToolBar >
@@ -25,30 +29,194 @@
                 </RibbonQuickAccessToolBar>
             </Ribbon.QuickAccessToolBar>
             <Ribbon.ApplicationMenu>
-                <RibbonApplicationMenu SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png">
-                    <RibbonApplicationMenuItem Header="Hello _Ribbon"
-                                                      x:Name="MenuItem1"
-                                                      ImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card.png"/>
+                <RibbonApplicationMenu SmallImageSource="/Assets/Icons/3b1b_logo.png">
+                    <RibbonApplicationMenuItem Header="Settings"
+                                                      x:Name="SettingsButton"
+                                                      ImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card.png">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="ManimLocationBox" Text="Manim not found." Foreground="Red" Loaded="ManimLocationBox_Loaded" FontSize="14" Padding="5,0" />
+                                <RibbonButton Label="Locate Manim" 
+                                        LargeImageSource="/Assets/Icons/Find_32x.png" 
+                                        Click="LocateManimButton_Click"/>
+                            </StackPanel>
+
+                        </StackPanel>
+                    </RibbonApplicationMenuItem>
                 </RibbonApplicationMenu>
             </Ribbon.ApplicationMenu>
+            
             <RibbonTab x:Name="HomeTab" 
                               Header="Home">
-                <RibbonGroup x:Name="Group1" 
-                                    Header="Group1">
-                    <RibbonButton x:Name="Button1"
-                                         LargeImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card.png"
-                                         Label="Button1" />
-                    <RibbonButton x:Name="Button2"
-                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png"
-                                         Label="Button2" />
-                    <RibbonButton x:Name="Button3"
-                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png"
-                                         Label="Button3" />
-                    <RibbonButton x:Name="Button4"
-                                         SmallImageSource="C:/Users/jjask/Pictures/UWP Companion Concept Final 2019 - Card 48px.png"
-                                         Label="Button4" />
+                <RibbonGroup Header="Video">
+                    <RibbonButton x:Name="PreviewButton"
+                           Label="Start Preview" 
+                           LargeImageSource="/Assets/Icons/Run_32x.png" 
+                                   Click="PreviewButton_Click"/>
+                    <RibbonButton Label="Render" 
+                           LargeImageSource="/Assets/Icons/RenderVideo_32x.png" 
+                                   Click="RenderButton_Click"/>
+                </RibbonGroup>
+                <RibbonGroup Header="Playback">
+                    <RibbonButton x:Name="PlaybackPlayButton"
+                           Label="Play"
+                           LargeImageSource="/Assets/Icons/Run_32x.png"
+                                   Click="PlaybackPlayButton_Click"
+                                   IsEnabled="False"/>
+                    <RibbonButton x:Name="PlaybackStopButton"
+                           Label="Stop"
+                           LargeImageSource="/Assets/Icons/Stop_32x.png"
+                                   Click="PlaybackStopButton_Click"
+                                   IsEnabled="False"/>
+                </RibbonGroup>
+                <RibbonGroup x:Name="InsertGroup" 
+                                    Header="Insert">
+                    <RibbonButton Label="New Rectangle"
+                           x:Name="NewRectButton"
+                           LargeImageSource="/Assets/Icons/Rectangle_32x.png"
+                           Click="NewRectButton_Click"/>
+                    <RibbonButton Label="New Ellipse"
+                           x:Name="NewCircleButton"
+                           LargeImageSource="/Assets/Icons/Circle_32x.png"
+                           Click="NewEllipseButton_Click"/>
+                    <RibbonButton Label="New Textbox"
+                           x:Name="NewTextboxButton"
+                           LargeImageSource="/Assets/Icons/TextBox_32x.png"
+                           Click="NewTextboxButton_Click"/>
+                    <RibbonButton Label="New TeX-box"
+                           x:Name="NewTeXboxButton"
+                                   IsEnabled="True"
+                           LargeImageSource="/Assets/Icons/TextBox_32x.png"
+                           Click="NewTeXboxButton_Click"/>
+                    <RibbonButton Label="New Graph"
+                           x:Name="NewGraphButton"
+                           LargeImageSource="/Assets/Icons/PiCreature_32x.png"
+                           Click="NewGraphButton_Click"/>
+                    <RibbonButton Label="New Pi Creature"
+                           x:Name="NewPiCreatureButton"
+                           LargeImageSource="/Assets/Icons/PiCreature_32x.png"
+                           Click="NewPiCreatureButton_Click"/>
                 </RibbonGroup>
             </RibbonTab>
+            <RibbonTab x:Name="AnimationsTab" 
+                              Header="Animations">
+                <RibbonGroup Header="Animation">
+                    <RibbonButton Label="Morph"
+                                         LargeImageSource="/Assets/Icons/Morph_32x.png" />
+                </RibbonGroup>
+            </RibbonTab>
+            <!--Contextual Tabs-->
+            <RibbonTab x:Name="FormatTab" Header="Format" ContextualTabGroupHeader="Drawing Tools" >
+                <RibbonGroup Header="Position">
+                    <StackPanel MinWidth="75">
+                        <TextBox x:Name="ItemHeightBox" ToolTip="Shape Height" TextChanged="ItemHeightBox_TextChanged"/>
+                        <TextBox x:Name="ItemWidthBox" ToolTip="Shape Width" TextChanged="ItemWidthBox_TextChanged"/>
+                        <TextBox x:Name="ItemXBox" ToolTip="Shape X Location" TextChanged="ItemXBox_TextChanged"/>
+                        <TextBox x:Name="ItemYBox" ToolTip="Shape Y Location" TextChanged="ItemYBox_TextChanged"/>
+                    </StackPanel>
+                </RibbonGroup>
+                <RibbonGroup Header="Shape Style">
+                    <Grid MinWidth="75">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <ComboBox x:Name="FillColorSelectBox" ToolTip="Fill Color" Grid.Row="0" SelectionChanged="FillColorSelectBox_SelectionChanged" />
+                        <!--Fluent:DropDownButton
+                                   Icon="/Assets/Icons/FillColor_16x.png"
+                                   LargeIcon="/Assets/Icons/FillColor_32x.png"
+                                   Header="Fill Color">
+                            <Fluent:Gallery x:Name="FillColorSelectBox"
+                                   SelectionChanged="FillColorSelectBox_SelectionChanged"
+                                   MaxItemsInRow="5"/>
+                        </Fluent:DropDownButton!-->
+
+                        <Border x:Name="FillColorDisplay" Grid.Row="1" Height="Auto" MinHeight="50" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                    </Grid>
+                </RibbonGroup>
+                <RibbonGroup Header="Arrange">
+                    <RibbonButton x:Name="DeleteSelectedButton" Label="Delete" Click="DeleteSelectedButton_Click"
+                                   LargeImageSource="/Assets/Icons/Delete_32x.png"/>
+                    <RibbonButton x:Name="BringForwardButton" Label="Bring Forward" Click="BringForwardButton_Click"
+                                   LargeImageSource="/Assets/Icons/BringForward_32x.png"/>
+                    <RibbonButton x:Name="SendBackwardButton" Label="Send Backward" Click="SendBackwardButton_Click"
+                                   LargeImageSource="/Assets/Icons/SendBackward_32x.png"/>
+                </RibbonGroup>
+            </RibbonTab>
+            <RibbonTab x:Name="TextTab" Header="Text" ContextualTabGroupHeader="Text Tools">
+                <RibbonGroup Header="Text Contents">
+
+                    <Grid MinWidth="200" Width="200" Height="{Binding TextTab.Height}">
+                        <TextBox Name="TextObjContentBox" Width="200" Height="{Binding TextTab.Height}" AcceptsReturn="True" TextChanged="TextObjContentBox_TextChanged"/>
+                    </Grid>
+
+                </RibbonGroup>
+            </RibbonTab>
+            <RibbonTab x:Name="TeXTab" Header="TeX" ContextualTabGroupHeader="LaTeX Tools">
+                <RibbonGroup Header="LaTeX Equation">
+
+                    <Grid MinWidth="200" Width="200" Height="{Binding TextTab.Height}">
+                        <RibbonTextBox Name="TeXObjContentBox" Width="200" Height="{Binding TeXTab.Height}" AcceptsReturn="True" LostFocus="TeXObjContentBox_LostFocus"/>
+                    </Grid>
+
+                </RibbonGroup>
+            </RibbonTab>
+            <RibbonTab x:Name="GraphTab" Header="Graph" ContextualTabGroupHeader="Graph Tools">
+                <RibbonGroup Header="Equation">
+                    <StackPanel MinWidth="200" Orientation="Horizontal">
+
+                        <StackPanel  MinWidth="200" Width="200" Orientation="Vertical">
+                            <TextBox Name="GraphEquationContentBox" Width="200" AcceptsReturn="False" ToolTip="Graph Equation" />
+                            <TextBox Name="GraphNameBox" Width="200" AcceptsReturn="False" ToolTip="Object Name" />
+                        </StackPanel>
+                        <StackPanel  MinWidth="200" Width="200" Orientation="Vertical">
+                            <TextBox Name="GraphXMinBox" Width="200" AcceptsReturn="False" ToolTip="x Minimum" />
+                            <TextBox Name="GraphXMaxBox" Width="200" AcceptsReturn="False" ToolTip="x Maximum" />
+                            <TextBox Name="GraphYMinBox" Width="200" AcceptsReturn="False" ToolTip="y Minimum" />
+                            <TextBox Name="GraphYMaxBox" Width="200" AcceptsReturn="False" ToolTip="y Maximum" />
+                        </StackPanel>
+
+                    </StackPanel>
+                </RibbonGroup>
+                <RibbonGroup Header="Viewport Preview">
+                    <RibbonButton x:Name="RenderGraphPreviewButton" Label="Render Graph Preview" Click="RenderGraphPreviewButton_Click"
+                                   LargeImageSource="/Assets/Icons/Play_32x.png"/>
+                </RibbonGroup>
+            </RibbonTab>
+
+            <Ribbon.ContextualTabGroups>
+                <RibbonContextualTabGroup x:Name="drawingGroup"
+                                     Header="Drawing Tools" 
+                                     Visibility="Collapsed"
+                                     Background="#F7C797" 
+                                     BorderBrush="#F7C797" />
+                <RibbonContextualTabGroup x:Name="textGroup"
+                                     Header="Text Tools" 
+                                     Visibility="Collapsed"
+                                     Background="#A31515" 
+                                     BorderBrush="#A31515" />
+                <RibbonContextualTabGroup x:Name="texGroup"
+                                     Header="LaTeX Tools" 
+                                     Visibility="Collapsed"
+                                     Background="#bdd5ea" 
+                                     BorderBrush="#bdd5ea" />
+                <RibbonContextualTabGroup x:Name="graphGroup"
+                                     Header="Graph Tools" 
+                                     Visibility="Collapsed"
+                                     Background="#6ce26c" 
+                                     BorderBrush="#6ce26c" />
+            </Ribbon.ContextualTabGroups>
         </Ribbon>
+
+        <Grid x:Name="MainGrid" Grid.Row="1" ClipToBounds="True">
+            <Viewbox Stretch="Uniform">
+                <local:RelativeLayoutPanel x:Name="DisplayCanvas" Margin="0,0,0,0" Background="Black" Width="2650" Height="1440"
+                                local:Draggable.MouseDown="DisplayCanvas_MouseDown"
+                                local:Draggable.MouseUp="DisplayCanvas_MouseUp"/>
+            </Viewbox>
+            <MediaElement x:Name="Player" Visibility="Collapsed" LoadedBehavior="Manual"
+                          MediaOpened="Player_MediaOpened" MediaEnded="Player_LoopMedia" MediaFailed="Player_MediaFailed"/>
+        </Grid>
     </Grid>
 </RibbonWindow>
