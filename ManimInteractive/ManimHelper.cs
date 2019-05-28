@@ -7,21 +7,21 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using WpfMath;
 
 namespace ManimInteractive
 {
     public class ManimHelper
     {
-        public const string PY_TAB = @"    ";
-        public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom big_ol_pile_of_manim_imports import *\r\n\r\n";
+        #region Directories
+        public static string ManimDirectory { get; set; } = Environment.GetEnvironmentVariable("MANIM_PATH", EnvironmentVariableTarget.User);  //@"C:\Users\jjask\Documents\manim\";
+        public static string ManimLibDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "manimlib");
+        public static string InteractiveDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "interactive");
+        #endregion
 
-        public const int PixelHeight = 1440;
-        public const int PixelWidth = 2560;
-        public const double FrameHeight = 8;
-        public const double FrameWidth = (8 * PixelWidth / PixelHeight);
-        public static readonly Point FrameOrigin = new Point(FrameWidth / 2, FrameHeight / 2);
-
+        #region Camera
         public static CameraConfig ActiveCameraConfig = CameraConfig.Production;
         public class CameraConfig
         {
@@ -57,7 +57,9 @@ namespace ManimInteractive
             public string BackgroundColor = Colors["BLACK"];
             //public CameraConfig Camera = CameraConfig.Production;
         }
+        #endregion
 
+        #region Manim Constants
         public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
             { "DARK_BLUE", "#236B8E" },
             { "DARK_BROWN", "#8B4513" },
@@ -115,8 +117,18 @@ namespace ManimInteractive
             { "GREEN_SCREEN", "#00FF00" },
             { "ORANGE", "#FF862F" },
         };
-        public static string ManimDirectory { get; set; } = @"C:\Users\jjask\Documents\manim\";
-        public static string ManimLibDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "manimlib");
+
+        public const int PixelHeight = 1440;
+        public const int PixelWidth = 2560;
+        public const double FrameHeight = 8;
+        public const double FrameWidth = (8 * PixelWidth / PixelHeight);
+        public static readonly Point FrameOrigin = new Point(FrameWidth / 2, FrameHeight / 2);
+        #endregion
+
+        #region Python Constants
+        public const string PY_TAB = @"    ";
+        public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom big_ol_pile_of_manim_imports import *\r\n\r\n";
+        #endregion
 
         #region Shapes
         public abstract class IMobject_Shape : Draggable
@@ -548,30 +560,30 @@ namespace ManimInteractive
 
         public class Mobject_TeX : IMobject_Shape
         {
-            private string _fill;
+            private string _fill = "WHITE";
             public override string Fill {
                 get {
                     return _fill;
                 }
                 set {
                     _fill = value;
-                    InternalBlock.Formula = ChangeFontColor(TextContent, value);
+                    LaTeXHelper.RenderLaTeX(TextContent, Colors[value]);
                 }
             }
             public override string MobjType {
                 get;
             } = "TexMobject";
-            private string _text = "";
+            private string _text = "x^2=0";
             public string TextContent {
                 get {
                     return _text;
                 }
                 set {
                     _text = value;
-                    InternalBlock.Formula = ChangeFontColor(value, Fill);
+                    InternalBlock.Source = LaTeXHelper.RenderLaTeX(value, Fill);
                 }
             }
-            private WpfMath.Controls.FormulaControl InternalBlock;
+            private Image InternalBlock;
             private Border InternalBorder;
 
             /// <summary>
@@ -580,27 +592,24 @@ namespace ManimInteractive
             /// <param name="name">Name of the mobject</param>
             /// <param name="view">Panel to draw in</param>
             /// <param name="rect">Relative sizing and location</param>
-            /// <param name="text">TeX / LaTeX</param>
+            /// <param name="text">LaTeX equation</param>
             /// <param name="fill">Text fill color</param>
-            /// <param name="fontsize">Text size</param>
             /// <param name="zindex">Zindex/Arrange height</param>
             public static Mobject_TeX Draw(string name, Panel view, Rect rect, string tex, string fill, int zindex)
             {
-                tex = ChangeFontColor(tex, fill);
-                var texblock = new WpfMath.Controls.FormulaControl()
+                var image = new Image
                 {
-                    Formula = tex,
-                    Foreground = Common.BrushFromHex(Colors[fill]),
+                    Source = LaTeXHelper.RenderLaTeX(tex, Colors[fill]),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     VerticalAlignment = VerticalAlignment.Stretch,
-                    IsHitTestVisible = false,
+                    IsHitTestVisible = false
                 };
                 var border = new Border()
                 {
                     Background = null,
                     BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
                     BorderThickness = new Thickness(5),
-                    Child = texblock
+                    Child = image
                 };
                 var item = new Mobject_TeX()
                 {
@@ -612,17 +621,19 @@ namespace ManimInteractive
                     IsDraggable = true,
                     IsHitTestVisible = true,
                     Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
-                    InternalBlock = texblock,
+                    InternalBlock = image,
                     InternalBorder = border,
                     Fill = fill,
                     TextContent = tex,
                 };
+
                 item.LoadAnimations();
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
             }
+
             public override void DrawSelectionBorder(double thickness = 5)
             {
                 if (thickness <= 0)
@@ -668,7 +679,7 @@ namespace ManimInteractive
                 }
 
                 string init = $"{AddToEachLine}{Name} = TexMobject(\r\n";
-                init += $"{AddToEachLine}{PY_TAB}@\"{TextContent}\"\r\n";
+                init += $"{AddToEachLine}{PY_TAB}\"{LaTeXHelper.EscapeLaTeX(TextContent)}\"\r\n";
                 //init += $"{PY_TAB}text_to_color_map={{\"{TextContent}\"}}";
                 init += $"{AddToEachLine})\r\n";
 
@@ -902,7 +913,7 @@ namespace ManimInteractive
             /// <param name="function">Python / numpy function [e.g. lambda x : (x**2)]</param>
             /// <param name="color">Color of function on graph (manim)</param>
             /// <param name="zindex">Zindex/Arrange height</param>
-            public static Mobject_Graph Draw(string name, Panel view, Rect rect, string function, string color, double xmin, double xmax, double ymin, double ymax, int zindex)
+            public static async Task<Mobject_Graph> Draw(string name, Panel view, Rect rect, string function, string color, double xmin, double xmax, double ymin, double ymax, int zindex)
             {
                 var image = new Image()
                 {
@@ -943,7 +954,7 @@ namespace ManimInteractive
                         { "graph_origin", "0" },
                     },
                 };
-                item.InternalImage.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(item.RenderGraphPreview(item.Config)));
+                item.InternalImage.Source = new BitmapImage(new Uri(await item.RenderGraphPreview(item.Config)));
                 SetRelativeRect(item, rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
@@ -963,7 +974,7 @@ namespace ManimInteractive
                 }
             }
             private int curPrevID = 0;
-            public string RenderGraphPreview(Dictionary<string, object> config)
+            public async Task<string> RenderGraphPreview(Dictionary<string, object> config)
             {
                 Config = config;
                 #region Generate a temporary scene with only the graph
@@ -992,24 +1003,24 @@ namespace ManimInteractive
                 Console.WriteLine("Saving \"\r\n" + pythonScene + "\"\r\nto " + System.IO.Path.Combine(ManimDirectory, "interactive\\temp_graphs.py"));
 
                 System.IO.File.WriteAllText(System.IO.Path.Combine(ManimDirectory, "interactive\\temp_graphs.py"), pythonScene);
-                RenderVideo(Name + "Preview" + curPrevID, new ExportOptions()
+                await RenderVideo(Name + "Preview" + curPrevID, new ExportOptions()
                 {
                     MediumQuality = true,
                     SavePNG = true,
                     UseTransparency = true,
                     SkipToLastFrame = true,
                 }, "interactive\\temp_graphs");
-                string path = ManimDirectory + $@"media\videos\interactive\temp_graphs\images\{ClassName}.png";
+                string path = System.IO.Path.Combine(ManimDirectory, $@"media\videos\interactive\temp_graphs\images\{ClassName}.png");
                 Console.WriteLine("Saving preview... | " + path);
                 //string path = $@"C:\Users\jjask\Videos\Manim Exports\videos\interactive\temp_graphs\images\{Name}Preview{curPrevID}.png";
                 curPrevID++;
                 return path;
             }
-            public void UpdateGraphPreview(Dictionary<string, object> config)
+            public async void UpdateGraphPreview(Dictionary<string, object> config)
             {
                 try
                 {
-                    InternalImage.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(RenderGraphPreview(config)));
+                    InternalImage.Source = new BitmapImage(new Uri(await RenderGraphPreview(config)));
                 }
                 catch
                 {
@@ -1091,11 +1102,11 @@ namespace ManimInteractive
         #endregion
 
         #region Command Line
-        public static string RenderVideo(string sceneName)
+        public static async Task<string> RenderVideo(string sceneName)
         {
-            return RenderVideo(sceneName, new ExportOptions());
+            return await RenderVideo(sceneName, new ExportOptions());
         }
-        public static string RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
+        public static async Task<string> RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
         {
             CameraConfig camera = CameraConfig.Production;
             string cmd = $"py -3 manim.py {module}.py {sceneName}";
@@ -1124,13 +1135,17 @@ namespace ManimInteractive
             cmd += $" -n {options.StartAtAnimation}";
 
             Console.WriteLine("Running... | " + cmd);
-            Common.RunCMD("cmd.exe", cmd, System.Diagnostics.ProcessWindowStyle.Normal);
-            return ManimDirectory + $@"media\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4";
+            var result = await Common.RunCMD("cmd.exe", cmd);
+            if (result.ExitCode != 0)
+            {
+                throw new Exception("An unknown error occured within manim");
+            }
+            return System.IO.Path.Combine(ManimDirectory, $@"media\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4");
         }
         #endregion
     }
 
-    public class LaTeXHelper
+    public static class LaTeXHelper
     {
         public static readonly FontFamily DefaultFont = new FontFamily("BKM-cmr17");
         public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>()
@@ -1138,5 +1153,42 @@ namespace ManimInteractive
             { "white", "#f8f9fa" },
 
         };
+
+        /// <summary>
+        /// Renders a LaTeX equation using the specified color
+        /// </summary>
+        /// <param name="latex">LaTeX Equation to render</param>
+        /// <param name="color">Text color (HEX)</param>
+        /// <returns></returns>
+        public static BitmapSource RenderLaTeX(string latex, string color)
+        {
+            var parser = new TexFormulaParser();
+            var formula = parser.Parse(latex);
+            formula.SetForeground(Common.BrushFromHex(color));
+            //formula.SetBackground(new SolidColorBrush(System.Windows.Media.Colors.White));
+            return formula.GetRenderer(TexStyle.Display, 100.0, LaTeXHelper.DefaultFont.Source).RenderToBitmap(0, 0);
+            //var pngBytes = formula.RenderToPng(100.0, 0.0, 0.0, LaTeXHelper.DefaultFont.Source);
+            //string imgpath = System.IO.Path.Combine(InteractiveDirectory, $"temp_latex//{Guid.NewGuid()}.png");
+            //System.IO.Directory.CreateDirectory(System.IO.Path.Combine(InteractiveDirectory, "temp_latex"));
+            //System.IO.File.WriteAllBytes(imgpath, pngBytes);
+            //return imgpath;
+        }
+
+        /// <summary>
+        /// Escapes a LaTeX string for use in Python
+        /// </summary>
+        /// <param name="latex">LaTeX string to escape</param>
+        public static string EscapeLaTeX(string latex)
+        {
+            string esc = "";
+            foreach (char ch in latex.ToArray())
+            {
+                if (ch == '\\')
+                    esc += @"\\";
+                else
+                    esc += ch;
+            }
+            return esc;
+        }
     }
 }

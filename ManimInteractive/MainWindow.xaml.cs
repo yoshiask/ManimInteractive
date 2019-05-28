@@ -34,6 +34,12 @@ namespace ManimInteractive
         public MainWindow()
         {
             InitializeComponent();
+
+            if (Environment.GetEnvironmentVariable("MANIM_PATH") == null)
+                Environment.SetEnvironmentVariable("MANIM_PATH", 
+                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "manim"),
+                    EnvironmentVariableTarget.User
+                );
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -116,6 +122,11 @@ namespace ManimInteractive
                             var textobj = shape as ManimHelper.Mobject_Text;
                             pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{textobj.GetWriteAnim()}\r\n";
                         }
+                        else if (shape.GetType() == typeof(ManimHelper.Mobject_TeX))
+                        {
+                            var texobj = shape as ManimHelper.Mobject_TeX;
+                            pythonScene += $"{ManimHelper.PY_TAB}{ManimHelper.PY_TAB}{texobj.GetWriteAnim()}\r\n";
+                        }
                         else if (shape.GetType() == typeof(ManimHelper.Mobject_PiCreature))
                         {
                             var piobj = shape as ManimHelper.Mobject_PiCreature;
@@ -193,7 +204,7 @@ namespace ManimInteractive
 
         #region Media Playback
         bool IsPreviewing = false;
-        private void PreviewButton_Click(object sender, RoutedEventArgs e)
+        private async void PreviewButton_Click(object sender, RoutedEventArgs e)
         {
             if (IsPreviewing)
             {
@@ -214,9 +225,9 @@ namespace ManimInteractive
             {
                 try
                 {
-                    File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py"), GenerateScene(SceneName));
+                    File.WriteAllText(System.IO.Path.Combine(ManimHelper.InteractiveDirectory, "exported_scenes.py"), GenerateScene(SceneName));
                     //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName} -pmg", ProcessWindowStyle.Normal);
-                    string vpath = ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
+                    string vpath = await ManimHelper.RenderVideo(SceneName, new ManimHelper.ExportOptions()
                     {
                         LowQuality = true,
                         SavePNG = true
@@ -251,11 +262,11 @@ namespace ManimInteractive
             Player.Play();
         }
 
-        private void RenderButton_Click(object sender, RoutedEventArgs e)
+        private async void RenderButton_Click(object sender, RoutedEventArgs e)
         {
             File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py"), GenerateScene(SceneName));
             //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName}", ProcessWindowStyle.Normal);
-            Uri video = new Uri(ManimHelper.RenderVideo(SceneName));
+            Uri video = new Uri(await ManimHelper.RenderVideo(SceneName));
 
             Player.Stop();
             Player.Stretch = Stretch.Uniform;
@@ -324,14 +335,14 @@ namespace ManimInteractive
         }
         private void NewTeXboxButton_Click(object sender, RoutedEventArgs e)
         {
-            SelectMobject(ManimHelper.Mobject_TeX.Draw("TeX" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), @"\left(x^2 + 2 \cdot x + 2\right) = 0", "WHITE", curZIndex++));
+            SelectMobject(ManimHelper.Mobject_TeX.Draw("TeX" + curID, DisplayCanvas, new Rect(0.5, 0.5, 0.2, 0.2), @"x^2 = 0", "WHITE", curZIndex++));
             curID++;
         }
 
         private ManimHelper.Mobject_Graph SceneGraph;
-        private void NewGraphButton_Click(object sender, RoutedEventArgs e)
+        private async void NewGraphButton_Click(object sender, RoutedEventArgs e)
         {
-            SceneGraph = ManimHelper.Mobject_Graph.Draw("Graph" + curID, DisplayCanvas, new Rect(0.5, 0.5, 1.0, 1.0), "lambda x : (np.sin(x**2))", "DARK_BLUE", -Math.PI, Math.PI, -3, 3, curZIndex++);
+            SceneGraph = await ManimHelper.Mobject_Graph.Draw("Graph" + curID, DisplayCanvas, new Rect(0.5, 0.5, 1.0, 1.0), "lambda x : (np.sin(x**2))", "DARK_BLUE", -Math.PI, Math.PI, -3, 3, curZIndex++);
             SelectMobject(SceneGraph);
             curID++;
             NewGraphButton.IsEnabled = false;

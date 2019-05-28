@@ -4,14 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ManimInteractive"
-        xmlns:fw="clr-namespace:SourceChord.FluentWPF;assembly=FluentWPF"
-        xmlns:mpv="https://github.com/JohanLarsson/Gu.Wpf.Media"
-        xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
-        xmlns:il="http://schemas.microsoft.com/expression/2010/interactions"
         xmlns:Fluent="urn:fluent-ribbon"
-                     xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
-                     mc:Ignorable="d"
-                     xmlns:media="System.Windows.Media"
+        mc:Ignorable="d"
         Icon="/Assets/Icons/3b1b_logo.png"
         Title="Manim Interactive" Height="600" Width="800" WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Loaded="Window_Loaded">
@@ -93,7 +87,7 @@
                            Click="NewTextboxButton_Click"/>
                     <Fluent:Button Header="New TeX-box"
                            x:Name="NewTeXboxButton"
-                                   IsEnabled="False"
+                                   IsEnabled="True"
                            Icon="/Assets/Icons/TextBox_16x.png"
                            LargeIcon="/Assets/Icons/TextBox_32x.png"
                            Click="NewTeXboxButton_Click"/>

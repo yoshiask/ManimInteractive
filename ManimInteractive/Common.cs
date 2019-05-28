@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using CliWrap;
 using DocumentFormat.OpenXml;
 
 namespace ManimInteractive
@@ -20,11 +21,18 @@ namespace ManimInteractive
         /// <param name="hex">HEX code string</param>
         public static Color ColorFromHex(string hex)
         {
-            hex = hex.Replace("#", string.Empty);
-            byte r = (byte)(Convert.ToUInt32(hex.Substring(0, 2), 16));
-            byte g = (byte)(Convert.ToUInt32(hex.Substring(2, 2), 16));
-            byte b = (byte)(Convert.ToUInt32(hex.Substring(4, 2), 16));
-            return Color.FromArgb(255, r, g, b);
+            try
+            {
+                hex = hex.Replace("#", string.Empty);
+                byte r = (byte)(Convert.ToUInt32(hex.Substring(0, 2), 16));
+                byte g = (byte)(Convert.ToUInt32(hex.Substring(2, 2), 16));
+                byte b = (byte)(Convert.ToUInt32(hex.Substring(4, 2), 16));
+                return Color.FromArgb(255, r, g, b);
+            }
+            catch (FormatException)
+            {
+                return Colors.White;
+            }
         }
 
         /// <summary>
@@ -57,7 +65,7 @@ namespace ManimInteractive
         /// </summary>
         /// <param name="cmd">The command line executeble (when in doubt use "cmd.exe")</param>
         /// <param name="args">Commands and arguments</param>
-        public static void RunCMD(string cmd, string args, ProcessWindowStyle windowStyle = ProcessWindowStyle.Hidden)
+        public static void RunCMDOld(string cmd, string args, ProcessWindowStyle windowStyle = ProcessWindowStyle.Hidden)
         {
             //Process process = new Process();
             ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -70,6 +78,34 @@ namespace ManimInteractive
             {
                 exeProcess.WaitForExit();
             }
+        }
+
+        /// <summary>
+        /// Opens the console application and runs the specified command
+        /// </summary>
+        /// <param name="cmd">The command line executeble (when in doubt use "cmd.exe")</param>
+        /// <param name="args">Commands and arguments</param>
+        public static async Task<CliWrap.Models.ExecutionResult> RunCMD(string cmd, string args, bool showWindow = true)
+        {
+            Console.WriteLine($"Command: {cmd} /C {args}");
+            var window = new RenderProgressWindow();
+            var cli = Cli.Wrap(cmd)
+                .SetStandardOutputCallback(l => Console.WriteLine($"StdOut> {l}")) // triggered on every line in stdout
+                .SetStandardErrorCallback(l => window.UpdateProgress(l)) // triggered on every line in stderr
+                .SetArguments("/C " + args)
+                .SetWorkingDirectory(ManimHelper.ManimDirectory);
+            window.Show();
+            var result = await cli.ExecuteAsync();
+            window.Close();
+
+            var exitCode = result.ExitCode;
+            var stdOut = result.StandardOutput;
+            var stdErr = result.StandardError;
+            var startTime = result.StartTime;
+            var exitTime = result.ExitTime;
+            var runTime = result.RunTime;
+
+            return result;
         }
     }
 
