@@ -45,6 +45,16 @@ namespace ManimInteractive
             return new SolidColorBrush(ColorFromHex(hex));
         }
 
+        public static Color Desaturate(this Color color, double amount)
+        {
+            return Color.FromArgb(
+                Convert.ToByte(color.A * amount),
+                color.R,
+                color.G,
+                color.B
+            );
+        }
+
         public static string FindManimColorMatch(Color color)
         {
             string targetColor = color.ToString();

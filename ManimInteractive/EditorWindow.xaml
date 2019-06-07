@@ -2,8 +2,8 @@
         x:Class="ManimInteractive.EditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:ManimInteractive"
-    Title="Editor | Manim Interactive"
+        xmlns:local="clr-namespace:ManimInteractive"
+        Title="Editor | Manim Interactive"
         x:Name="EditorWindowPane"
         WindowState="Maximized"
         Icon="/Assets/Icons/3b1b_logo.png"
@@ -16,7 +16,7 @@
         </Grid.RowDefinitions>
 
         <!--TODO: Re-export icons at 24px and 48px-->
-        <Ribbon x:Name="MainRibbon" Title="Ribbon">
+        <Ribbon x:Name="MainRibbon" Title="Ribbon" Background="White">
             <Ribbon.HelpPaneContent>
                 <RibbonButton SmallImageSource="/Assets/Icons/Find_32x.png" />
             </Ribbon.HelpPaneContent>
@@ -109,7 +109,7 @@
             <RibbonTab x:Name="FormatTab" Header="Format" ContextualTabGroupHeader="Drawing Tools" >
                 <RibbonGroup Header="Position">
                     <StackPanel MinWidth="75">
-                        <TextBox x:Name="ItemHeightBox" ToolTip="Shape Height" TextChanged="ItemHeightBox_TextChanged"/>
+                        <TextBox x:Name="ItemHeightBox" ToolTip="Shape Height" TextChanged="ItemHeightBox_TextChanged" Padding="0"/>
                         <TextBox x:Name="ItemWidthBox" ToolTip="Shape Width" TextChanged="ItemWidthBox_TextChanged"/>
                         <TextBox x:Name="ItemXBox" ToolTip="Shape X Location" TextChanged="ItemXBox_TextChanged"/>
                         <TextBox x:Name="ItemYBox" ToolTip="Shape Y Location" TextChanged="ItemYBox_TextChanged"/>
@@ -146,11 +146,7 @@
             </RibbonTab>
             <RibbonTab x:Name="TextTab" Header="Text" ContextualTabGroupHeader="Text Tools">
                 <RibbonGroup Header="Text Contents">
-
-                    <Grid MinWidth="200" Width="200" Height="{Binding TextTab.Height}">
-                        <TextBox Name="TextObjContentBox" Width="200" Height="{Binding TextTab.Height}" AcceptsReturn="True" TextChanged="TextObjContentBox_TextChanged"/>
-                    </Grid>
-
+                        <RibbonTextBox Name="TextObjContentBox" AcceptsReturn="True" TextChanged="TextObjContentBox_TextChanged" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
                 </RibbonGroup>
             </RibbonTab>
             <RibbonTab x:Name="TeXTab" Header="TeX" ContextualTabGroupHeader="LaTeX Tools">

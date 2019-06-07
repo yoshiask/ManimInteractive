@@ -60,6 +60,8 @@ namespace ManimInteractive
             {
                 Console.WriteLine("     > " + drawing);
             }
+
+            MainRibbon.Background = new SolidColorBrush((SystemParameters.WindowGlassBrush as SolidColorBrush).Color.Desaturate(0.2f));
         }
 
         #region Python
@@ -78,8 +80,7 @@ namespace ManimInteractive
             UIElementCollection elements = DisplayCanvas.Children;
             foreach (FrameworkElement item in elements)
             {
-                var shape = item as ManimHelper.IMobject_Shape;
-                if (shape != null && shape as ManimHelper.Mobject_Graph == null)
+                if (item is ManimHelper.IMobject_Shape shape && shape as ManimHelper.Mobject_Graph == null)
                 {
                     switch (shape.Visibility)
                     {
@@ -98,8 +99,7 @@ namespace ManimInteractive
 
             foreach (FrameworkElement item in elements)
             {
-                var shape = item as ManimHelper.IMobject_Shape;
-                if (shape != null)
+                if (item is ManimHelper.IMobject_Shape shape)
                 {
                     if (shape.Visibility == Visibility.Visible)
                     {
@@ -171,8 +171,7 @@ namespace ManimInteractive
                     Object o = key.GetValue("");
                     if (o != null)
                     {
-                        string pyPath32 = o as string;
-                        if (pyPath32 != null)
+                        if (o is string pyPath32)
                         {
                             return pyPath32;
                         }
@@ -186,8 +185,7 @@ namespace ManimInteractive
         }
         public static string GetPython64(string version)
         {
-            string pyPath64 = Registry.GetValue($@"HKLM\SOFTWARE\Wow6432Node\Python\PythonCore\{version}\InstallPath", "(Default)", null) as string;
-            if (pyPath64 != null)
+            if (Registry.GetValue($@"HKLM\SOFTWARE\Wow6432Node\Python\PythonCore\{version}\InstallPath", "(Default)", null) is string pyPath64)
             {
                 return pyPath64;
             }
@@ -613,9 +611,7 @@ namespace ManimInteractive
 
             private void MoveThumb_DragDelta(object sender, DragDeltaEventArgs e)
             {
-                Control item = this.DataContext as Control;
-
-                if (item != null)
+                if (this.DataContext is Control item)
                 {
                     double left = Canvas.GetLeft(item);
                     double top = Canvas.GetTop(item);
@@ -635,9 +631,7 @@ namespace ManimInteractive
 
             private void ResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
             {
-                Control item = this.DataContext as Control;
-
-                if (item != null)
+                if (this.DataContext is Control item)
                 {
                     double deltaVertical, deltaHorizontal;
 

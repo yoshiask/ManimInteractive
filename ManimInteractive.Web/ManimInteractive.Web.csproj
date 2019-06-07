@@ -59,7 +59,7 @@
     <Reference Include="Granular.Presentation.Generic, Version=0.3.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Granular.0.3.0\lib\net45\Granular.Presentation.Generic.dll</HintPath>
     </Reference>
-    <Reference Include="PresentationFramework" />
+    <Reference Include="System.Windows.Controls.Ribbon" />
     <Reference Include="System.Windows.Interactivity, Version=4.5.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\ControlzEx.3.0.2.4\lib\net45\System.Windows.Interactivity.dll</HintPath>
     </Reference>

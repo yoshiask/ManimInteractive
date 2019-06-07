@@ -14,8 +14,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        
-        <Fluent:Ribbon x:Name="MainRibbon" Grid.Row="0">
+
+        <Fluent:Ribbon x:Name="MainRibbon" Grid.Row="0" Background="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}">
             <!--Backstage-->
             <Fluent:Ribbon.Menu>
                 <Fluent:Backstage>
