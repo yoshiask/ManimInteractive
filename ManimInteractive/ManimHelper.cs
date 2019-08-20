@@ -1,4 +1,6 @@
-﻿using System;
+﻿using IronPython.Hosting;
+using Microsoft.Scripting.Hosting;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -16,7 +18,7 @@ namespace ManimInteractive
     public class ManimHelper
     {
         #region Directories
-        public static string ManimDirectory { get; set; } = Environment.GetEnvironmentVariable("MANIM_PATH", EnvironmentVariableTarget.User);  //@"C:\Users\jjask\Documents\manim\";
+        public static string ManimDirectory { get; set; } = Environment.GetEnvironmentVariable("MANIM_PATH", EnvironmentVariableTarget.User);
         public static string ManimLibDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "manimlib");
         public static string InteractiveDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "interactive");
         #endregion
@@ -60,6 +62,20 @@ namespace ManimInteractive
         #endregion
 
         #region Manim Constants
+        private static PythonInstance _manimConstants;
+        public static PythonInstance ManimConstants {
+            get {
+                if (_manimConstants == null)
+                {
+                    string constantsPY = System.IO.File.ReadAllText(
+                        System.IO.Path.Combine(ManimLibDirectory, "constants.py")
+                    );
+                    _manimConstants = new PythonInstance(constantsPY, "ManimConstants");
+                }
+                return _manimConstants;
+            }
+        }
+
         public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
             { "DARK_BLUE", "#236B8E" },
             { "DARK_BROWN", "#8B4513" },
@@ -127,11 +143,11 @@ namespace ManimInteractive
 
         #region Python Constants
         public const string PY_TAB = @"    ";
-        public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom big_ol_pile_of_manim_imports import *\r\n\r\n";
+        public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom manimlib.imports import *\r\n\r\n";
         #endregion
 
         #region Shapes
-        public abstract class IMobject_Shape : Draggable
+        public abstract class IMobject_Shape : RatioDraggable
         {
             public abstract string Fill {
                 get; set;
@@ -156,6 +172,9 @@ namespace ManimInteractive
             /// <param name="thickness">Thickness of the border</param>
             public abstract void DrawSelectionBorder(double thickness = 5);
 
+            /// <summary>
+            /// Takes an x-coordinate centered at the top left and returns a component of a manim vector
+            /// </summary>
             public static string CalculateXPosition(double X)
             {
                 double DistanceFromCenter = X - .5;
@@ -172,6 +191,9 @@ namespace ManimInteractive
 
                 return result;
             }
+            /// <summary>
+            /// Takes a y-coordinate centered at the top left and returns a component of a manim vector
+            /// </summary>
             public static string CalculateYPosition(double Y)
             {
                 double DistanceFromCenter = Y - .5;
@@ -226,7 +248,7 @@ namespace ManimInteractive
                     StrokeThickness = 7,
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     VerticalAlignment = VerticalAlignment.Stretch,
-                    IsHitTestVisible = false
+                    IsHitTestVisible = false,
                 };
                 var border = new Border()
                 {
@@ -249,7 +271,7 @@ namespace ManimInteractive
                     InternalBorder = border,
                     Fill = fill,
                 };
-                SetRelativeRect(item, rect);
+                item.SetRelativeRect(rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
@@ -275,11 +297,11 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
                 //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
 
-                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
-                init += $"{AddToEachLine}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect().Height * FrameHeight})\r\n";
+                init += $"{AddToEachLine}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
 
                 // Calculate vectors for positioning
-                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect().X)} + {CalculateYPosition(GetRelativeRect().Y)})";
                 return init;
             }
             public override void LoadAnimations()
@@ -365,7 +387,7 @@ namespace ManimInteractive
                     InternalBorder = border,
                     Fill = fill,
                 };
-                SetRelativeRect(item, rect);
+                item.SetRelativeRect(rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
@@ -397,11 +419,11 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
                 //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
 
-                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
-                init += $"{AddToEachLine}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect().Height * FrameHeight})\r\n";
+                init += $"{AddToEachLine}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
 
                 // Calculate vectors for positioning
-                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect().X)} + {CalculateYPosition(GetRelativeRect().Y)})";
                 return init;
             }
             public string GetShowCreationAnim(object[] args = null)
@@ -502,7 +524,7 @@ namespace ManimInteractive
                     TextContent = text,
                 };
                 item.LoadAnimations();
-                SetRelativeRect(item, rect);
+                item.SetRelativeRect(rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
@@ -537,11 +559,11 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
                 //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
 
-                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
-                //init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect().Height * FrameHeight})\r\n";
+                //init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
 
                 // Calculate vectors for positioning
-                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect().X)} + {CalculateYPosition(GetRelativeRect().Y)})";
                 return init;
             }
             public string GetWriteAnim(object[] args = null)
@@ -628,7 +650,7 @@ namespace ManimInteractive
                 };
 
                 item.LoadAnimations();
-                SetRelativeRect(item, rect);
+                item.SetRelativeRect(rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
@@ -686,11 +708,11 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
                 //init += $"{PY_TAB}{PY_TAB}{name}.set_outline({Outline}, opacity=1.0)\r\n";
 
-                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
-                //init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+                init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect().Height * FrameHeight})\r\n";
+                //init += $"{PY_TAB}{PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
 
                 // Calculate vectors for positioning
-                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect().X)} + {CalculateYPosition(GetRelativeRect().Y)})";
                 return init;
             }
             public string GetWriteAnim(object[] args = null)
@@ -765,7 +787,7 @@ namespace ManimInteractive
                     InternalBorder = border,
                     Fill = fill,
                 };
-                SetRelativeRect(item, rect);
+                item.SetRelativeRect(rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
@@ -791,13 +813,13 @@ namespace ManimInteractive
                 init += $"{AddToEachLine}{Name}.set_color({Fill})\r\n";
 
                 // Set sizing
-                if (GetRelativeRect(this).Height * PixelHeight < GetRelativeRect(this).Width * PixelWidth)
-                    init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect(this).Height * FrameHeight})\r\n";
+                if (GetRelativeRect().Height * PixelHeight < GetRelativeRect().Width * PixelWidth)
+                    init += $"{AddToEachLine}{Name}.set_height({GetRelativeRect().Height * FrameHeight})\r\n";
                 else
-                    init += $"{AddToEachLine}{Name}.set_width({GetRelativeRect(this).Width * FrameWidth})\r\n";
+                    init += $"{AddToEachLine}{Name}.set_width({GetRelativeRect().Width * FrameWidth})\r\n";
 
                 // Calculate vectors for positioning
-                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect(this).X)} + {CalculateYPosition(GetRelativeRect(this).Y)})";
+                init += $"{AddToEachLine}{Name}.shift({CalculateXPosition(GetRelativeRect().X)} + {CalculateYPosition(GetRelativeRect().Y)})";
                 return init;
             }
 
@@ -955,7 +977,7 @@ namespace ManimInteractive
                     },
                 };
                 item.InternalImage.Source = new BitmapImage(new Uri(await item.RenderGraphPreview(item.Config)));
-                SetRelativeRect(item, rect);
+                item.SetRelativeRect(rect);
                 view.Children.Add(item);
                 SetZIndex(item, zindex);
                 return item;
@@ -1109,7 +1131,7 @@ namespace ManimInteractive
         public static async Task<string> RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
         {
             CameraConfig camera = CameraConfig.Production;
-            string cmd = $"py -3 manim.py {module}.py {sceneName}";
+            string cmd = $"manim.py {module}.py {sceneName}";
             if (options.Preview)
                 cmd += " -p";
             if (options.LowQuality)
@@ -1190,5 +1212,52 @@ namespace ManimInteractive
             }
             return esc;
         }
+    }
+
+    public class PythonInstance
+    {
+        private ScriptEngine engine;
+        private ScriptScope scope;
+        private ScriptSource source;
+        private CompiledCode compiled;
+        private object pythonClass;
+
+        public PythonInstance(string code, string className = "PyClass")
+        {
+            //creating engine and stuff
+            engine = Python.CreateEngine();
+            scope = engine.CreateScope();
+
+            //loading and compiling code
+            source = engine.CreateScriptSourceFromString(code, Microsoft.Scripting.SourceCodeKind.Statements);
+            compiled = source.Compile();
+
+            //now executing this code (the code should contain a class)
+            compiled.Execute(scope);
+
+            //now creating an object that could be used to access the stuff inside a python script
+            pythonClass = engine.Operations.Invoke(scope.GetVariable(className));
+        }
+
+        public void SetVariable(string variable, dynamic value)
+        {
+            scope.SetVariable(variable, value);
+        }
+
+        public dynamic GetVariable(string variable)
+        {
+            return scope.GetVariable(variable);
+        }
+
+        public void CallMethod(string method, params dynamic[] arguments)
+        {
+            engine.Operations.InvokeMember(pythonClass, method, arguments);
+        }
+
+        public dynamic CallFunction(string method, params dynamic[] arguments)
+        {
+            return engine.Operations.InvokeMember(pythonClass, method, arguments);
+        }
+
     }
 }

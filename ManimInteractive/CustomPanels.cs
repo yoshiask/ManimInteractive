@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -86,7 +87,7 @@ namespace ManimInteractive
         public Draggable() { }
         public Draggable(Rect rect, bool isDraggable = true)
         {
-            SetRelativeRect(this, rect);
+            SetRelativeRect(rect);
             IsDraggable = isDraggable;
         }
 
@@ -130,10 +131,10 @@ namespace ManimInteractive
                     var view = Parent as Panel;
                     if (view != null)
                     {
-                        var RelativeRect = GetRelativeRect(this);
+                        var RelativeRect = GetRelativeRect();
                         RelativeRect.X += (mouseDelta.X / view.ActualWidth);
                         RelativeRect.Y += (mouseDelta.Y / view.ActualHeight);
-                        SetRelativeRect(this, RelativeRect);
+                        SetRelativeRect(RelativeRect);
                     }
                 }
 
@@ -160,7 +161,7 @@ namespace ManimInteractive
                     if (Parent is Panel)
                     {
                         RecalculateRelative(Parent as Panel);
-                        Console.WriteLine(GetRelativeRect(this));
+                        Console.WriteLine(GetRelativeRect());
                     }
                 }
             }
@@ -196,33 +197,33 @@ namespace ManimInteractive
         /// <param name="view">The containing view</param>
         public void MoveToLocation(Point vector, Panel view)
         {
-            var rect = GetRelativeRect(this);
+            var rect = GetRelativeRect();
             rect.X = vector.X;
             rect.Y = vector.Y;
-            SetRelativeRect(this, rect);
+            SetRelativeRect(rect);
             view.InvalidateArrange();
         }
 
         public void SetX(Double NewX, Panel view)
         {
-            MoveToLocation(new Point(NewX, GetRelativeRect(this).Y), view);
+            MoveToLocation(new Point(NewX, GetRelativeRect().Y), view);
         }
         public void SetY(Double NewY, Panel view)
         {
-            MoveToLocation(new Point(GetRelativeRect(this).X, NewY), view);
+            MoveToLocation(new Point(GetRelativeRect().X, NewY), view);
         }
         public void SetWidth(Double NewWidth, Panel view)
         {
-            var rect = GetRelativeRect(this);
+            var rect = GetRelativeRect();
             rect.Width = NewWidth;
-            SetRelativeRect(this, rect);
+            SetRelativeRect(rect);
             view.InvalidateArrange();
         }
         public void SetHeight(Double NewHeight, Panel view)
         {
-            var rect = GetRelativeRect(this);
+            var rect = GetRelativeRect();
             rect.Height = NewHeight;
-            SetRelativeRect(this, rect);
+            SetRelativeRect(rect);
             view.InvalidateArrange();
         }
 
@@ -232,11 +233,11 @@ namespace ManimInteractive
         /// <param name="view">The containing Viewport</param>
         private void RecalculateRelative(Panel view, bool ResetMargin = true)
         {
-            Rect RelativeRect = GetRelativeRect(this);
+            Rect RelativeRect = GetRelativeRect();
             Point AbsLocation = TranslatePoint(new Point(0, 0), view);
             RelativeRect.X = (AbsLocation.X / view.ActualWidth) + (RelativeRect.Width / 2);
             RelativeRect.Y = (AbsLocation.Y / view.ActualHeight) + (RelativeRect.Height / 2);
-            SetRelativeRect(this, RelativeRect);
+            SetRelativeRect(RelativeRect);
             if (ResetMargin)
                 Margin = new Thickness(0);
 
@@ -244,13 +245,13 @@ namespace ManimInteractive
             view.InvalidateArrange();
         }
 
-        public static void SetRelativeRect(UIElement element, Rect rect)
+        public void SetRelativeRect(Rect rect)
         {
-            RelativeLayoutPanel.SetRelativeRect(element, rect);
+            RelativeLayoutPanel.SetRelativeRect(this, rect);
         }
-        public static Rect GetRelativeRect(UIElement element)
+        public Rect GetRelativeRect()
         {
-            return RelativeLayoutPanel.GetRelativeRect(element);
+            return RelativeLayoutPanel.GetRelativeRect(this);
         }
 
         protected override Size ArrangeOverride(Size finalSize)
@@ -278,5 +279,152 @@ namespace ManimInteractive
         /// True if started dragging
         /// </summary>
         public bool NewState { get; set; }
+    }
+
+    public class RatioDraggable : Draggable
+    {
+        public FracRatio CurrentRatio = new FracRatio(2.8, 1.6);
+
+        public void SetByWidth(double width, Panel view)
+        {
+            SetWidth(width, view);
+            SetHeight(width / CurrentRatio.Ratio, view);
+        }
+        public void SetByHeight(double height, Panel view)
+        {
+            SetHeight(height, view);
+            SetWidth(height * CurrentRatio.Ratio, view);
+        }
+
+        public new void SetWidth(double NewWidth, Panel view)
+        {
+            CurrentRatio.Numerator = NewWidth;
+
+            var rect = GetRelativeRect();
+            rect.Width = NewWidth;
+            SetRelativeRect(rect);
+            view.InvalidateArrange();
+        }
+        public new void SetHeight(double NewHeight, Panel view)
+        {
+            CurrentRatio.Denominator = NewHeight;
+
+            var rect = GetRelativeRect();
+            rect.Height = NewHeight;
+            SetRelativeRect(rect);
+            view.InvalidateArrange();
+        }
+    }
+
+    public class FracRatio
+    {
+        /// <summary>
+        /// Numerator or Width
+        /// </summary>
+        public double Numerator {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Denominator or Height
+        /// </summary>
+        public double Denominator {
+            get;
+            set;
+        }
+
+        public double Ratio {
+            get {
+                return Numerator / Denominator;
+            }
+        }
+
+        /// <summary>
+        /// Creates a new Fraction Ratio structure.
+        /// </summary>
+        /// <param name="num">Numerator or Width</param>
+        /// <param name="den">Denominator or Height</param>
+        public FracRatio(double num, double den)
+        {
+            Numerator = num;
+            Denominator = den;
+        }
+    }
+
+    public class MoveThumb : Thumb
+    {
+        public MoveThumb()
+        {
+            DragDelta += new DragDeltaEventHandler(this.MoveThumb_DragDelta);
+        }
+
+        private void MoveThumb_DragDelta(object sender, DragDeltaEventArgs e)
+        {
+            Control item = this.DataContext as Control;
+
+            if (item != null)
+            {
+                double left = Canvas.GetLeft(item);
+                double top = Canvas.GetTop(item);
+
+                Canvas.SetLeft(item, left + e.HorizontalChange);
+                Canvas.SetTop(item, top + e.VerticalChange);
+            }
+        }
+    }
+
+    public class ResizeThumb : Thumb
+    {
+        public ResizeThumb()
+        {
+            DragDelta += new DragDeltaEventHandler(this.ResizeThumb_DragDelta);
+        }
+
+        private void ResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
+        {
+            Control item = this.DataContext as Control;
+
+            if (item != null)
+            {
+                double deltaVertical, deltaHorizontal;
+
+                switch (VerticalAlignment)
+                {
+                    case VerticalAlignment.Bottom:
+                        deltaVertical = Math.Min(-e.VerticalChange,
+                            item.ActualHeight - item.MinHeight);
+                        item.Height -= deltaVertical;
+                        break;
+                    case VerticalAlignment.Top:
+                        deltaVertical = Math.Min(e.VerticalChange,
+                            item.ActualHeight - item.MinHeight);
+                        Canvas.SetTop(item, Canvas.GetTop(item) + deltaVertical);
+                        item.Height -= deltaVertical;
+                        break;
+                    default:
+                        break;
+                }
+
+                switch (HorizontalAlignment)
+                {
+                    case HorizontalAlignment.Left:
+                        deltaHorizontal = Math.Min(e.HorizontalChange,
+                            item.ActualWidth - item.MinWidth);
+                        Canvas.SetLeft(item, Canvas.GetLeft(item) + deltaHorizontal);
+                        item.Width -= deltaHorizontal;
+                        break;
+                    case HorizontalAlignment.Right:
+                        deltaHorizontal = Math.Min(-e.HorizontalChange,
+                            item.ActualWidth - item.MinWidth);
+                        item.Width -= deltaHorizontal;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            e.Handled = true;
+        }
     }
 }

@@ -436,10 +436,10 @@ namespace ManimInteractive
         {
             if (item != null)
             {
-                ItemHeightBox.Text = Math.Round(Draggable.GetRelativeRect(item).Height * DisplayCanvas.ActualHeight).ToString();
-                ItemWidthBox.Text = Math.Round(Draggable.GetRelativeRect(item).Width * DisplayCanvas.ActualWidth).ToString();
-                ItemXBox.Text = Math.Round(Draggable.GetRelativeRect(item).X * DisplayCanvas.ActualWidth).ToString();
-                ItemYBox.Text = Math.Round(Draggable.GetRelativeRect(item).Y * DisplayCanvas.ActualHeight).ToString();
+                ItemHeightBox.Text = Math.Round(item.GetRelativeRect().Height * DisplayCanvas.ActualHeight).ToString();
+                ItemWidthBox.Text = Math.Round(item.GetRelativeRect().Width * DisplayCanvas.ActualWidth).ToString();
+                ItemXBox.Text = Math.Round(item.GetRelativeRect().X * DisplayCanvas.ActualWidth).ToString();
+                ItemYBox.Text = Math.Round(item.GetRelativeRect().Y * DisplayCanvas.ActualHeight).ToString();
 
                 FillColorSelectBox.SelectedIndex = ManimHelper.Colors.Keys.ToList().IndexOf(item.Fill);
                 FillColorDisplay.Background = Common.BrushFromHex(ManimHelper.Colors[item.Fill]);
@@ -509,27 +509,36 @@ namespace ManimInteractive
         }
         private void ItemWidthBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (!IsLoadingSelected && SelectedVisual != null)
+            if (!IsLoadingSelected && SelectedVisual != null && sender.GetType() != typeof(TextBox))
             {
                 try
                 {
-                    double NewRelative = Convert.ToDouble(ItemWidthBox.Text) / DisplayCanvas.Width;
-                    SelectedVisual.SetWidth(NewRelative, DisplayCanvas);
+                    if (!String.IsNullOrWhiteSpace(ItemWidthBox.Text))
+                    {
+                        double NewRelative = Convert.ToDouble(ItemWidthBox.Text) / DisplayCanvas.Width;
+                        SelectedVisual.SetByWidth(NewRelative, DisplayCanvas);
+                        ItemHeightBox.Text = SelectedVisual.Height.ToString();
+                    }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Console.WriteLine(ex);
                     ItemWidthBox.Text = "0";
                 }
             }
         }
         private void ItemHeightBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (!IsLoadingSelected && SelectedVisual != null)
+            if (!IsLoadingSelected && SelectedVisual != null && sender.GetType() != typeof(TextBox))
             {
                 try
                 {
-                    double NewRelative = Convert.ToDouble(ItemHeightBox.Text) / DisplayCanvas.Height;
-                    SelectedVisual.SetHeight(NewRelative, DisplayCanvas);
+                    if (!String.IsNullOrWhiteSpace(ItemWidthBox.Text))
+                    {
+                        double NewRelative = Convert.ToDouble(ItemHeightBox.Text) / DisplayCanvas.Height;
+                        SelectedVisual.SetByHeight(NewRelative, DisplayCanvas);
+                        ItemWidthBox.Text = SelectedVisual.Width.ToString();
+                    }
                 }
                 catch (Exception)
                 {
@@ -605,84 +614,6 @@ namespace ManimInteractive
             {
                 ManimLocationBox.Text = ManimHelper.ManimDirectory;
                 ManimLocationBox.Foreground = new SolidColorBrush(Colors.White);
-            }
-        }
-        #endregion
-
-        #region Thumbs
-        public class MoveThumb : Thumb
-        {
-            public MoveThumb()
-            {
-                DragDelta += new DragDeltaEventHandler(this.MoveThumb_DragDelta);
-            }
-
-            private void MoveThumb_DragDelta(object sender, DragDeltaEventArgs e)
-            {
-                Control item = this.DataContext as Control;
-
-                if (item != null)
-                {
-                    double left = Canvas.GetLeft(item);
-                    double top = Canvas.GetTop(item);
-
-                    Canvas.SetLeft(item, left + e.HorizontalChange);
-                    Canvas.SetTop(item, top + e.VerticalChange);
-                }
-            }
-        }
-
-        public class ResizeThumb : Thumb
-        {
-            public ResizeThumb()
-            {
-                DragDelta += new DragDeltaEventHandler(this.ResizeThumb_DragDelta);
-            }
-
-            private void ResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
-            {
-                Control item = this.DataContext as Control;
-
-                if (item != null)
-                {
-                    double deltaVertical, deltaHorizontal;
-
-                    switch (VerticalAlignment)
-                    {
-                        case VerticalAlignment.Bottom:
-                            deltaVertical = Math.Min(-e.VerticalChange,
-                                item.ActualHeight - item.MinHeight);
-                            item.Height -= deltaVertical;
-                            break;
-                        case VerticalAlignment.Top:
-                            deltaVertical = Math.Min(e.VerticalChange,
-                                item.ActualHeight - item.MinHeight);
-                            Canvas.SetTop(item, Canvas.GetTop(item) + deltaVertical);
-                            item.Height -= deltaVertical;
-                            break;
-                        default:
-                            break;
-                    }
-
-                    switch (HorizontalAlignment)
-                    {
-                        case HorizontalAlignment.Left:
-                            deltaHorizontal = Math.Min(e.HorizontalChange,
-                                item.ActualWidth - item.MinWidth);
-                            Canvas.SetLeft(item, Canvas.GetLeft(item) + deltaHorizontal);
-                            item.Width -= deltaHorizontal;
-                            break;
-                        case HorizontalAlignment.Right:
-                            deltaHorizontal = Math.Min(-e.HorizontalChange,
-                                item.ActualWidth - item.MinWidth);
-                            item.Width -= deltaHorizontal;
-                            break;
-                        default:
-                            break;
-                    }
-                }
-
-                e.Handled = true;
             }
         }
         #endregion

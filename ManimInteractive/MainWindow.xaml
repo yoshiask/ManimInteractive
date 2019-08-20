@@ -246,7 +246,7 @@
         
         <Grid x:Name="MainGrid" Grid.Row="1" ClipToBounds="True">
             <Viewbox Stretch="Uniform">
-                <local:RelativeLayoutPanel x:Name="DisplayCanvas" Margin="0,0,0,0" Background="Black" Width="2650" Height="1440"
+                <local:RelativeLayoutPanel x:Name="DisplayCanvas" Margin="0,0,0,0" Background="#101010" Width="2650" Height="1440"
                                 local:Draggable.MouseDown="DisplayCanvas_MouseDown"
                                 local:Draggable.MouseUp="DisplayCanvas_MouseUp"/>
             </Viewbox>
