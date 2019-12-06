@@ -33,14 +33,27 @@ namespace ManimInteractive
                 if (percent == -1)
                 {
                     int i = message.IndexOf('%');
-                    int A; int B;
-                    if (int.TryParse(message.ToArray()[i - 1].ToString(), out A))
+                    char[] messageCh = message.ToCharArray();
+                    int A, B;
+                    int.TryParse(messageCh[i - 1].ToString(), out B);
+                    string strA = messageCh[i - 2].ToString();
+                    if (!String.IsNullOrWhiteSpace(strA))
+                    {
+                        int.TryParse(strA, out A);
+                        p = A * 10 + B;
+                    }
+                    else
+                    {
+                        p = B;
+                    }
+                    
+                    /*if (int.TryParse(message.ToArray()[i - 1].ToString(), out A))
                     {
                         if (int.TryParse(message.ToArray()[i - 2].ToString(), out B))
                             p = int.Parse(A.ToString() + B.ToString());
                         else if (message.ToArray()[i - 2] == ' ')
                             p = A;
-                    }
+                    }*/
                 }
                 Dispatcher.Invoke(() => Title = $"Rendering... ({p}%)");
                 Dispatcher.Invoke(() => ProgressDisplay.IsIndeterminate = false);

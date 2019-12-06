@@ -100,8 +100,8 @@ namespace ManimInteractive
             Console.WriteLine($"Command: {cmd} /C {args}");
             var window = new RenderProgressWindow();
             var cli = Cli.Wrap(cmd)
-                .SetStandardOutputCallback(l => Console.WriteLine($"StdOut> {l}")) // triggered on every line in stdout
-                .SetStandardErrorCallback(l => window.UpdateProgress(l)) // triggered on every line in stderr
+                .SetStandardOutputCallback(l => Console.WriteLine($"StdOut> {l}")) // Triggered on every line in stdout
+                .SetStandardErrorCallback(l => window.UpdateProgress(l)) // Triggered on every line in stderr
                 .SetArguments("/C " + args)
                 .SetWorkingDirectory(ManimHelper.ManimDirectory);
             window.Show();
@@ -151,6 +151,28 @@ namespace ManimInteractive
         {
             string[] sep = { @"\r\n" };
             return s.Split(sep, StringSplitOptions.None);
+        }
+    }
+
+    static class ArrayUtilities
+    {
+        // create a subset from a range of indices
+        public static T[] RangeSubset<T>(this T[] array, int startIndex, int length)
+        {
+            T[] subset = new T[length];
+            Array.Copy(array, startIndex, subset, 0, length);
+            return subset;
+        }
+
+        // create a subset from a specific list of indices
+        public static T[] Subset<T>(this T[] array, params int[] indices)
+        {
+            T[] subset = new T[indices.Length];
+            for (int i = 0; i < indices.Length; i++)
+            {
+                subset[i] = array[indices[i]];
+            }
+            return subset;
         }
     }
 }

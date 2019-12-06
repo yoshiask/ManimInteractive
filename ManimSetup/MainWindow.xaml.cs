@@ -190,27 +190,30 @@ namespace ManimSetup
         {
             if (PackagesToInstall.Count > 0)
             {
-                switch (PackagesToInstall[0])
+                foreach (string package in PackagesToInstall)
                 {
-                    case "python":
-                        
-                        break;
+                    switch (package)
+                    {
+                        case "python":
 
-                    case "manim":
-                        DownloadManim();
-                        break;
+                            break;
 
-                    case "cairo":
-                        InstallCairo();
-                        break;
+                        case "manim":
+                            DownloadManim();
+                            break;
 
-                    case "ffmpeg":
-                        InstallFFmpeg();
-                        break;
+                        case "cairo":
+                            InstallCairo();
+                            break;
 
-                    case "latex":
-                        InstallMiKTeX();
-                        break;
+                        case "ffmpeg":
+                            InstallFFmpeg();
+                            break;
+
+                        case "latex":
+                            InstallMiKTeX();
+                            break;
+                    }
                 }
             }
         }
@@ -258,7 +261,7 @@ namespace ManimSetup
             };
             TopGrid.Children.Remove(CenterGrid);
             TopGrid.Children.Add(CenterConsole);
-            System.Windows.Controls.Grid.SetRow(CenterConsole, 1);
+            Grid.SetRow(CenterConsole, 1);
 
             // Get install directory
             string InstallDir = InstallDirBox.Text;
@@ -282,7 +285,7 @@ namespace ManimSetup
 
         private void Proc_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            CenterConsole.WriteLine(e.Data, Colors.White);
+            Console.WriteLine(e.Data, Colors.White);
         }
         private void Proc_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
@@ -359,9 +362,6 @@ namespace ManimSetup
         #region Install Functions
         public static void InstallPython()
         {
-            Thread test = new Thread(new ThreadStart(TestThread));
-            test.Start();
-
             //Main.CenterConsole.WriteLine("Installing Python 3.7.1...", Colors.White);
             Console.WriteLine("Installing Python 3.7.1...");
             if (!CheckForPython32("37"))

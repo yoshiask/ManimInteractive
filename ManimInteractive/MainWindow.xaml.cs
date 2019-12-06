@@ -44,8 +44,16 @@ namespace ManimInteractive
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Check for required Python version
+            var versions = GetPythonVersions();
+            if (versions.Count < 1)
+            {
+                throw new Exception("No versions of Python are installed.");
+            }
+
+            // Get manim color palette
             FillColorSelectBox.Items.Clear();
-            foreach (KeyValuePair<string, string> pair in ManimHelper.Colors)
+            foreach (KeyValuePair<string, string> pair in ManimHelper.PYColors)
             {
                 FillColorSelectBox.Items.Add(new ComboBoxItem()
                 {
@@ -54,12 +62,15 @@ namespace ManimInteractive
                 });
             }
 
+            // Set Display Canvas size
             DisplayCanvas.Width = ManimHelper.PixelWidth;
             DisplayCanvas.Height = ManimHelper.PixelHeight;
 
+            // Create Manim Interactive directory
             ReloadManimLocationBox();
             Directory.CreateDirectory(System.IO.Path.Combine(ManimHelper.ManimDirectory, @"interactive"));
 
+            // Load manim drawings
             foreach (string drawing in ManimHelper.ManimDrawings)
             {
                 Console.WriteLine("     > " + drawing);
@@ -200,6 +211,32 @@ namespace ManimInteractive
                 throw new FileLoadException(PYTHON_NOT_FOUND_MSG);
             }
         }
+
+        public static bool IsPythonInstalled()
+        {
+            var versions = GetPythonVersions();
+            if (versions.Count > 0)
+                return true;
+            return false;
+        }
+        public static List<Version> GetPythonVersions()
+        {
+            string pattern = @"[a-zA-Z]* ([0-9]*).([0-9]*).([0-9]*)$";
+            string input = @"Python 3.7.3";
+
+            var matches = System.Text.RegularExpressions.Regex.Matches(input, pattern);
+            List<Version> versions = new List<Version>();
+            foreach (System.Text.RegularExpressions.Match m in matches)
+            {
+                Console.WriteLine("'{0}' found at index {1}.", m.Value, m.Index);
+                versions.Add(new Version(
+                    Convert.ToInt32(m.Groups[1].Value),
+                    Convert.ToInt32(m.Groups[2].Value),
+                    Convert.ToInt32(m.Groups[3].Value)
+                ));
+            }
+            return versions;
+        }
         #endregion
 
         #region Media Playback
@@ -264,9 +301,12 @@ namespace ManimInteractive
 
         private async void RenderButton_Click(object sender, RoutedEventArgs e)
         {
-            File.WriteAllText(System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py"), GenerateScene(SceneName));
+            string scenePath = System.IO.Path.Combine(ManimHelper.ManimDirectory, "interactive\\exported_scenes.py");
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(scenePath));
+            File.WriteAllText(scenePath, GenerateScene(SceneName));
             //Common.RunCMD("cmd.exe", $@"py -3 extract_scene.py testing\exported_scenes.py {SceneName}", ProcessWindowStyle.Normal);
-            Uri video = new Uri(await ManimHelper.RenderVideo(SceneName));
+            string renderPath = await ManimHelper.RenderVideo(SceneName);
+            Uri video = new Uri(renderPath, UriKind.Absolute);
 
             Player.Stop();
             Player.Stretch = Stretch.Uniform;

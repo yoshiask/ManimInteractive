@@ -3,6 +3,7 @@ using Microsoft.Scripting.Hosting;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using WpfMath;
+using static ManimInteractive.ArrayUtilities;
 
 namespace ManimInteractive
 {
@@ -76,6 +78,49 @@ namespace ManimInteractive
             }
         }
 
+        public static Dictionary<string, string> PYColors {
+            get {
+                string constantsPath = System.IO.Path.Combine(ManimLibDirectory, "constants.py");
+                var constantspyLines = File.ReadAllLines(constantsPath);
+                var constantspy = File.ReadAllText(constantsPath);
+                string colorMap = "";
+
+                bool startFound = false;
+                int start = 0;
+                int end = 0;
+                // Find where the COLOR_MAP variable is
+                for (int i = 0; i < constantspyLines.Count(); i++)
+                {
+                    string line = constantspyLines[i];
+                    if (line.StartsWith("COLOR_MAP = {"))
+                    {
+                        startFound = true;
+                        start = i;
+                    }
+                    if (startFound)
+                    {
+                        if (line.StartsWith("}"))
+                        {
+                            end = i;
+                        }
+                    }
+                }
+                if (startFound && end > 0)
+                {
+                    var colorLines = constantspyLines.RangeSubset(start, end - start + 1);
+                    foreach (string line in colorLines)
+                    {
+                        colorMap += line;
+                        colorMap += "\n";
+                    }
+                }
+
+                var engine = Python.CreateEngine();
+                var scope = engine.CreateScope();
+                engine.Execute(colorMap, scope);
+                return PythonClassConverters.ToDictionary(scope.GetVariable("COLOR_MAP"));
+            }
+        }
         public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
             { "DARK_BLUE", "#236B8E" },
             { "DARK_BROWN", "#8B4513" },
@@ -1131,7 +1176,7 @@ namespace ManimInteractive
         public static async Task<string> RenderVideo(string sceneName, ExportOptions options, string module = @"interactive\exported_scenes")
         {
             CameraConfig camera = CameraConfig.Production;
-            string cmd = $"manim.py {module}.py {sceneName}";
+            string cmd = $"py -3 manim.py {module}.py {sceneName}";
             if (options.Preview)
                 cmd += " -p";
             if (options.LowQuality)
@@ -1162,7 +1207,15 @@ namespace ManimInteractive
             {
                 throw new Exception("An unknown error occured within manim");
             }
-            return System.IO.Path.Combine(ManimDirectory, $@"media\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4");
+
+            // Figure out where the scene was exported
+            return System.Text.RegularExpressions.Regex.Matches(
+                result.StandardOutput, @"([a-zA-Z]*:[\\[a-zA-Z0-9 .\-_]*]*)"
+            ).Cast<System.Text.RegularExpressions.Match>().First(
+                (m) => m.Value.EndsWith(".mp4")
+            ).Value;
+            
+            //return System.IO.Path.Combine(ManimDirectory, $@"\videos\{module}\{camera.ExportFolder}\{sceneName}.mp4");
         }
         #endregion
     }
@@ -1259,5 +1312,18 @@ namespace ManimInteractive
             return engine.Operations.InvokeMember(pythonClass, method, arguments);
         }
 
+    }
+
+    public static class PythonClassConverters
+    {
+        public static Dictionary<string, string> ToDictionary(IronPython.Runtime.PythonDictionary pyDic)
+        {
+            var dic = new Dictionary<string, string>();
+            foreach (KeyValuePair<object, object> pair in pyDic)
+            {
+                dic.Add(pair.Key.ToString(), pair.Value.ToString());
+            }
+            return dic;
+        }
     }
 }
