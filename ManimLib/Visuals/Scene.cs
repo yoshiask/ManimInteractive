@@ -8,13 +8,13 @@ namespace ManimLib.Visuals
     public class Scene
     {
         #region Properties
-        public List<Shapes.Mobject_Shape> Objects {
+        public List<Mobject.Shapes.ShapeBase> Objects {
             get {
-                var _objects = new List<IManimElement>(Commands).FindAll((e) => e.GetType() == typeof(Shapes.Mobject_Shape));
-                List<Shapes.Mobject_Shape> objects = new List<Shapes.Mobject_Shape>();
+                var _objects = new List<IManimElement>(Commands).FindAll((e) => e.GetType() == typeof(Mobject.Shapes.ShapeBase));
+                List<Mobject.Shapes.ShapeBase> objects = new List<Mobject.Shapes.ShapeBase>();
                 foreach (IManimElement e in _objects)
                 {
-                    objects.Add((Shapes.Mobject_Shape)e);
+                    objects.Add((Mobject.Shapes.ShapeBase)e);
                 }
                 return objects;
             }
@@ -85,7 +85,7 @@ namespace ManimLib.Visuals
             }
         }
 
-        public void SetShape(string name, Shapes.Mobject_Shape newShape)
+        public void SetShape(string name, Mobject.Shapes.ShapeBase newShape)
         {
             var shape = GetShape(name);
             if (shape != null)
@@ -93,7 +93,7 @@ namespace ManimLib.Visuals
                 Objects[Objects.IndexOf(shape)] = newShape;
             }
         }
-        public Shapes.Mobject_Shape GetShape(string name)
+        public Mobject.Shapes.ShapeBase GetShape(string name)
         {
             return Objects.Find((s) => s.Name == name);
         }
@@ -101,7 +101,7 @@ namespace ManimLib.Visuals
         {
             Objects.Remove(GetShape(name));
         }
-        public void RemoveShape(Shapes.Mobject_Shape shape)
+        public void RemoveShape(Mobject.Shapes.ShapeBase shape)
         {
             Objects.Remove(shape);
         }

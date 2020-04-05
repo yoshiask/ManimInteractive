@@ -45,8 +45,6 @@ namespace ManimLib.Mathematics
             }
             return total;
         }
-
-
         #endregion
 
         public static double Linear(double t)
@@ -62,15 +60,27 @@ namespace ManimLib.Mathematics
                 0, 1
             );
         }
+        public static double Smooth(double t)
+        {
+            return Smooth(t, 10);
+        }
 
         public static double RushInto(double t, double inflection = 10)
         {
             return 2 * Smooth(t / 2.0, inflection);
         }
+        public static double RushInto(double t)
+        {
+            return RushInto(t, 10);
+        }
 
         public static double RushFrom(double t, double inflection = 10)
         {
             return 2 * Smooth(t / 2.0 + 0.5, inflection) - 1;
+        }
+        public static double RushFrom(double t)
+        {
+            return RushFrom(t, 10);
         }
 
         public static double SlowInto(double t)
@@ -95,6 +105,10 @@ namespace ManimLib.Mathematics
                 new_t = 2 * (1 - t);
             return Smooth(new_t, inflection);
         }
+        public static double ThereAndBack(double t)
+        {
+            return ThereAndBack(t, 10);
+        }
 
         public static double ThereAndBackWithPause(double t, double pauseRatio = 1.0 / 3)
         {
@@ -105,6 +119,10 @@ namespace ManimLib.Mathematics
                 return 1;
             else
                 return Smooth(a - a * t);
+        }
+        public static double ThereAndBackWithPause(double t)
+        {
+            return ThereAndBackWithPause(t, 1.0 / 3);
         }
 
         // TODO: Implement the running_start function
@@ -117,6 +135,10 @@ namespace ManimLib.Mathematics
         public static double Wiggle(double t, int numWiggles = 2)
         {
             return ThereAndBack(t) * Math.Sin(numWiggles * Math.PI * t);
+        }
+        public static double Wiggle(double t)
+        {
+            return Wiggle(t, 3);
         }
 
         public static Func<double, double> SquishRateFunction(Func<double, double> func, double a = 0.4, double b = 0.6)
@@ -142,6 +164,10 @@ namespace ManimLib.Mathematics
         public static double ExponentialDecay(double t, double halfLife = 0.1)
         {
             return 1 - Math.Exp(-t / halfLife);
+        }
+        public static double ExponentialDecay(double t)
+        {
+            return ExponentialDecay(t, 0.1);
         }
     }
 }

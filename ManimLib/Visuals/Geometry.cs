@@ -201,7 +201,7 @@ namespace ManimLib.Visuals
         }
     }
 
-    public struct Color
+    public class Color
     {
         byte A, R, G, B;
 
@@ -269,5 +269,16 @@ namespace ManimLib.Visuals
             output += B.ToString("X");
             return output;
         }
+
+        public override string ToString()
+        {
+            return ToHex();
+        }
+    }
+
+    public static class Colors
+    {
+        public static readonly Color White = new Color(255, 255, 255);
+        public static readonly Color Black = new Color(0, 0, 0);
     }
 }

@@ -16,8 +16,29 @@ namespace ManimLib.Visuals
             public string Name { get; set; }
             public double RunTime { get; set; }
             public double LagRatio { get; set; }
-            public Shapes.Mobject_Shape Mobject { get; set; }
-            public Shapes.Mobject_Shape StartingMobject { get; set; }
+            public Mobject Mobject { get; set; }
+            public Mobject StartingMobject { get; set; }
+
+            public Animation()
+            {
+                RateFunction = Functions.Smooth;
+                RunTime = 1.0;
+                LagRatio = 0;
+            }
+            public Animation(Mobject mobject)
+            {
+                Mobject = mobject;
+                RateFunction = Functions.Smooth;
+                RunTime = 1.0;
+                LagRatio = 0;
+            }
+            public Animation(Mobject mobject, Func<double, double> rateFunc, double runTime, double lagRatio)
+            {
+                Mobject = mobject;
+                RateFunction = rateFunc;
+                RunTime = runTime;
+                LagRatio = lagRatio;
+            }
 
             public void Begin()
             {
@@ -33,7 +54,7 @@ namespace ManimLib.Visuals
             public void CleanUpScene(Scene scene)
             {
                 if (IsRemover)
-                    scene.RemoveShape(Mobject);
+                    scene.RemoveShape(Mobject.Name);
             }
 
             public void Interpolate(double alpha)
@@ -42,7 +63,7 @@ namespace ManimLib.Visuals
                 RateFunction(alpha);
             }
 
-            public void InterpolateMobject(Shapes.Mobject_Shape obj, Shapes.Mobject_Shape startingObj, double alpha)
+            public void InterpolateMobject(Mobject obj, Mobject startingObj, double alpha)
             {
                 return;
             }
@@ -59,6 +80,16 @@ namespace ManimLib.Visuals
             {
                 return Name;
             }
+        }
+
+        public abstract class ShowPartial : Animation
+        {
+            public void InterpolateSubmobject(Mobject mobject, Mobject startMobject, double alpha)
+            {
+
+            }
+
+            public abstract Tuple<double, double> GetBounds();
         }
     }
 }
