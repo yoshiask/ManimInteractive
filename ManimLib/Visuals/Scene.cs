@@ -62,7 +62,7 @@ namespace ManimLib.Visuals
             SetShapeZIndex(name, 0);
         }
 
-        public void SetShapeLocation(string name, Point p)
+        public void SetShapeLocation(string name, Math.Point p)
         {
             var shape = GetShape(name);
             if (shape != null)
@@ -72,7 +72,7 @@ namespace ManimLib.Visuals
                 SetShape(name, newShape);
             }
         }
-        public Point GetShapeLocation(string name)
+        public Math.Point GetShapeLocation(string name)
         {
             var shape = GetShape(name);
             if (shape != null)
@@ -81,7 +81,7 @@ namespace ManimLib.Visuals
             }
             else
             {
-                return new Point();
+                return new Math.Point();
             }
         }
 

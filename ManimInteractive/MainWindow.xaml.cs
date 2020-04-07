@@ -23,6 +23,7 @@ using Microsoft.Expression.Interactivity.Layout;
 using Microsoft.Scripting.Hosting;
 using Microsoft.Win32;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using ManimLib;
 
 namespace ManimInteractive
 {

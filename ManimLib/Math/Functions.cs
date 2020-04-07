@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using static System.Math;
 
-namespace ManimLib.Mathematics
+namespace ManimLib.Math
 {
     public static class Functions
     {
@@ -28,7 +29,7 @@ namespace ManimLib.Mathematics
 
         public static double Sigmoid(double x)
         {
-            return 1.0 / (1 + Math.Exp(-x));
+            return 1.0 / (1 + Exp(-x));
         }
 
         // TODO: Implement the Bezier function
@@ -85,7 +86,7 @@ namespace ManimLib.Mathematics
 
         public static double SlowInto(double t)
         {
-            return Math.Sqrt(1 - (1 - t) * (1 - t));
+            return Sqrt(1 - (1 - t) * (1 - t));
         }
 
         public static double DoubleSmooth(double t)
@@ -134,7 +135,7 @@ namespace ManimLib.Mathematics
 
         public static double Wiggle(double t, int numWiggles = 2)
         {
-            return ThereAndBack(t) * Math.Sin(numWiggles * Math.PI * t);
+            return ThereAndBack(t) * Sin(numWiggles * PI * t);
         }
         public static double Wiggle(double t)
         {
@@ -163,7 +164,7 @@ namespace ManimLib.Mathematics
 
         public static double ExponentialDecay(double t, double halfLife = 0.1)
         {
-            return 1 - Math.Exp(-t / halfLife);
+            return 1 - Exp(-t / halfLife);
         }
         public static double ExponentialDecay(double t)
         {

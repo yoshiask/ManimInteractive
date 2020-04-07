@@ -1,4 +1,4 @@
-﻿using ManimLib.Mathematics;
+﻿using ManimLib.Math;
 using System;
 
 namespace ManimLib.Visuals
@@ -65,6 +65,7 @@ namespace ManimLib.Visuals
 
             public void InterpolateMobject(Mobject obj, Mobject startingObj, double alpha)
             {
+                // Typically implemented by subclass
                 return;
             }
 

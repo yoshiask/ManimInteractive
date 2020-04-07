@@ -1,23 +1,28 @@
-﻿using System;
+﻿using ManimLib.Math;
+using NumSharp;
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
+using System.Numerics;
 
 namespace ManimLib.Visuals
 {
-    public abstract class Mobject
+    public class Mobject
     {
         #region Properties
         public Color Color { get; set; }
         public string Name { get; set; }
 
-        public int Dim { get; set; }
+        public int Dimension { get; set; } = 3;
         public object Target { get; set; }
         public List<Mobject> Submobjects { get; internal set; }
 
         public List<Func<Mobject, double, Mobject>> Updaters { get; internal set; }
         public bool IsUpdatingSuspended { get; set; }
 
-        public List<Point> Points { get; internal set; }
+        public Math.Point[] Points { get; internal set; }
         #endregion
 
         public Mobject(string name = null, Color color = null, int dim = 3, object target = null)
@@ -27,17 +32,18 @@ namespace ManimLib.Visuals
             Updaters = new List<Func<Mobject, double, Mobject>>();
             IsUpdatingSuspended = false;
             ResetPoints();
-            GeneratePoints();
+            //GeneratePoints();
         }
 
         private void ResetPoints()
         {
-            Points = new List<Point>();
+            //Points = ArrayUtils.Zeros(typeof(Math.Point), (0, Dimension));
+            Array.Clear(Points, 0, Dimension);
         }
 
-        internal void GeneratePoints()
+        public void SetPoints(params Math.Point[] points)
         {
-            return;
+            Points = points;
         }
 
         internal void InitColors()
@@ -141,6 +147,38 @@ namespace ManimLib.Visuals
             return this;
         }
 
+        public void Shift(params Vector2[] vtrs)
+        {
+            Vector2 totalVectors = new Vector2(0, 0);
+            foreach (Vector2 v in vtrs)
+                totalVectors += v;
+            
+            for (int i = 0; i < Points.Length; i++)
+            {
+                Points[i] += totalVectors;
+            }
+        }
+
+        public void Scale(double scaleFactor, Math.Point aboutPoint)
+        {
+            ApplyPointsFunctionAboutPoint(
+                points => Math.Point.Multiply(points, scaleFactor),
+                aboutPoint
+            );
+        }
+
+        public void RotateAboutOrigin(decimal angle, object axis)
+        {
+            //Rotate();
+        }
+
+        public void ApplyPointsFunctionAboutPoint(Func<Math.Point[], Math.Point[]> func, Math.Point aboutPoint)
+        {
+            Points.Where(val => val != aboutPoint).ToArray();
+            Points = func(Points);
+            Points.Concat(new Math.Point[] { aboutPoint });
+        }
+
         public class Shapes
         {
             public abstract class ShapeBase : IManimElement
@@ -209,8 +247,8 @@ namespace ManimLib.Visuals
 
                 }
 
-                private Point _location = new Point(0, 0);
-                public Point Location {
+                private Math.Point _location = new Math.Point(0, 0);
+                public Math.Point Location {
                     get {
                         return _location;
                     }
@@ -234,7 +272,7 @@ namespace ManimLib.Visuals
                 public delegate void SizeChangedHandler(Rect current, Rect old);
 
                 public event LocationChangedHandler OnLocationChanged;
-                public delegate void LocationChangedHandler(Point current, Point old);
+                public delegate void LocationChangedHandler(Math.Point current, Math.Point old);
                 #endregion
 
                 public Dictionary<string, AnimationMethod> AvailableAnimations = new Dictionary<string, AnimationMethod>();
@@ -257,7 +295,7 @@ namespace ManimLib.Visuals
                     init += $"{AddToEachLine}{Name}.stretch_to_fit_width({Size.GetWidth()})\r\n";
 
                     // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Vector.PointToPythonVector(Location)})";
+                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
                     return init;
                 }
 
@@ -366,7 +404,7 @@ namespace ManimLib.Visuals
                     //init += $"{Common.PY_TAB}{Common.PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
 
                     // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Vector.PointToPythonVector(Location)})";
+                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
                     return init;
                 }
                 public string GetWriteAnim(object[] args = null)
@@ -445,7 +483,7 @@ namespace ManimLib.Visuals
                     //init += $"{Common.PY_TAB}{Common.PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
 
                     // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Vector.PointToPythonVector(Location)})";
+                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
                     return init;
                 }
                 public string GetWriteAnim(object[] args = null)
@@ -481,7 +519,7 @@ namespace ManimLib.Visuals
                         init += $"{AddToEachLine}{Name}.set_width({Size.GetWidth()})\r\n";
 
                     // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Vector.PointToPythonVector(Location)})";
+                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
                     return init;
                 }
 
@@ -627,5 +665,100 @@ namespace ManimLib.Visuals
     public interface IManimElement
     {
         string GetManimType();
+    }
+
+    public class Group : Mobject, ICollection<Mobject>
+    {
+        private List<Mobject> Mobjects;
+
+        public Group(params Mobject[] mobjects)
+        {
+            Mobjects = mobjects.ToList();
+        }
+        public Group(List<Mobject> mobjects)
+        {
+            Mobjects = mobjects;
+        }
+
+        public int Count => Mobjects.Count;
+
+        public bool IsReadOnly => false;
+
+        public void Add(Mobject item)
+        {
+            Mobjects.Add(item);
+        }
+
+        public void Clear()
+        {
+            Mobjects.Clear();
+        }
+
+        public bool Contains(Mobject item)
+        {
+            return Mobjects.Contains(item);
+        }
+
+        public void CopyTo(Mobject[] array, int arrayIndex)
+        {
+            Mobjects.CopyTo(array, arrayIndex);
+        }
+
+        public IEnumerator<Mobject> GetEnumerator()
+        {
+            return Mobjects.GetEnumerator();
+        }
+
+        public bool Remove(Mobject item)
+        {
+            return Mobjects.Remove(item);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Mobjects.GetEnumerator();
+        }
+    }
+
+    public class Point : Mobject
+    {
+        public decimal X, Y;
+        public decimal ArtificialWidth, ArtificialHeight = 1e-6m;
+
+        public Point(int x = 0, int y = 0)
+        {
+            X = x;
+            Y = y;
+        }
+        public Point(double x = 0, double y = 0)
+        {
+            X = (decimal)x;
+            Y = (decimal)y;
+        }
+        public Point(float x = 0, float y = 0)
+        {
+            X = (decimal)x;
+            Y = (decimal)y;
+        }
+        public Point(decimal x = 0, decimal y = 0)
+        {
+            X = x;
+            Y = y;
+        }
+        public Point(Vector2 v)
+        {
+            X = (decimal)v.X;
+            Y = (decimal)v.Y;
+        }
+
+        public decimal GetWidth()
+        {
+            return ArtificialWidth;
+        }
+
+        public decimal GetHeight()
+        {
+            return ArtificialWidth;
+        }
     }
 }

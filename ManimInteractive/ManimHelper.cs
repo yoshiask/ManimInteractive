@@ -115,7 +115,7 @@ namespace ManimInteractive
                     }
                 }
 
-                var engine = Python.CreateEngine();
+                var engine = IronPython.Hosting.Python.CreateEngine();
                 var scope = engine.CreateScope();
                 engine.Execute(colorMap, scope);
                 return PythonClassConverters.ToDictionary(scope.GetVariable("COLOR_MAP"));
@@ -1278,7 +1278,7 @@ namespace ManimInteractive
         public PythonInstance(string code, string className = "PyClass")
         {
             //creating engine and stuff
-            engine = Python.CreateEngine();
+            engine = IronPython.Hosting.Python.CreateEngine();
             scope = engine.CreateScope();
 
             //loading and compiling code

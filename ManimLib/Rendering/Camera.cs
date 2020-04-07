@@ -8,8 +8,8 @@ namespace ManimLib.Rendering
     public class Camera
     {
         public string BackgroundImage { get; set; }
-        public Rect FrameSize { get; set; }
-        public Rect PixelSize { get; set; }
+        public Math.Rect FrameSize { get; set; }
+        public Math.Rect PixelSize { get; set; }
         public int Framerate { get; set; }
         public Color BackgroundColor { get; set; }
     }
