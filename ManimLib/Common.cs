@@ -1,5 +1,8 @@
-﻿using System;
+﻿using MathNet.Numerics.LinearAlgebra;
+using MathNet.Spatial.Euclidean;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace ManimLib
@@ -76,6 +79,7 @@ namespace ManimLib
         public const string PY_TAB = @"    ";
         public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom manimlib.imports import *\r\n\r\n";
     }
+
     public static class StringExtensions
     {
         public static string[] Lines(this string s)
@@ -93,6 +97,10 @@ namespace ManimLib
             T[] subset = new T[length];
             Array.Copy(array, startIndex, subset, 0, length);
             return subset;
+        }
+        public static double[] RangeSubset(this Vector<double> array, int startIndex, int length)
+        {
+            return array.ToArray().RangeSubset(startIndex, length);
         }
 
         // create a subset from a specific list of indices
@@ -208,6 +216,54 @@ namespace ManimLib
 
             return output;
         }
+        public static double[,] Subtract(this double[,] arrayA, double[,] arrayB)
+        {
+            int width = arrayA.GetLength(0);
+            int height = arrayA.GetLength(1);
+
+            if (width != arrayB.GetLength(0) || height != arrayB.GetLength(1))
+                throw new ArgumentException("Arrays must be the same shape");
+
+            var output = new double[width, height];
+            for (int j = 0; j < height; j++)
+                for (int r = 0; r < width; r++)
+                    output[r, j] = arrayA[r, j] - arrayB[r, j];
+
+            return output;
+        }
+
+        public static int[,] Multiply(this int[,] matrix, int scalar)
+        {
+            int width = matrix.GetLength(0);
+            int height = matrix.GetLength(1);
+
+            var output = new int[width, height];
+            for (int j = 0; j < height; j++)
+                for (int r = 0; r < width; r++)
+                    output[r, j] = matrix[r, j] * scalar;
+
+            return output;
+        }
+        public static double[,] Multiply(this double[,] matrix, double scalar)
+        {
+            int width = matrix.GetLength(0);
+            int height = matrix.GetLength(1);
+
+            var output = new double[width, height];
+            for (int j = 0; j < height; j++)
+                for (int r = 0; r < width; r++)
+                    output[r, j] = matrix[r, j] * scalar;
+
+            return output;
+        }
+        public static double[] Multiply(this double[] matrix, double scalar)
+        {
+            var output = new double[matrix.Length];
+            for (int j = 0; j < matrix.Length; j++)
+                output[j] = matrix[j] * scalar;
+
+            return output;
+        }
 
         public static int[,] Abs(this int[,] nums)
         {
@@ -230,6 +286,15 @@ namespace ManimLib
 
             return output;
         }
+        public static double[,] CastToDoubleArray(this int[,] input)
+        {
+            var output = new double[input.GetLength(0), input.GetLength(1)];
+            for (int j = 0; j < input.GetLength(1); j++)
+                for (int r = 0; r < input.GetLength(0); r++)
+                    output[r, j] = (double)input[r, j];
+
+            return output;
+        }
 
         public static string ToMatrixString<T>(this T[,] matrix, string delimiter = "\t")
         {
@@ -246,6 +311,112 @@ namespace ManimLib
             }
 
             return s.ToString();
+        }
+
+        public static int Sum(this int[] nums)
+        {
+            int sum = 0;
+            foreach (int n in nums)
+                sum += n;
+            return sum;
+        }
+        public static Vector<double> Sum(this Vector<double>[] vectors)
+        {
+            Vector<double> sum = Vector<double>.Build.DenseOfArray(new double[] { 0, 0, 0 });
+            foreach (Vector<double> n in vectors)
+                sum += n;
+            return sum;
+        }
+        public static Vector3D Sum(this Vector3D[] vectors)
+        {
+            Vector3D sum = new Vector3D( 0, 0, 0 );
+            foreach (Vector3D n in vectors)
+                sum += n;
+            return sum;
+        }
+        public static Vector2D Sum(this Vector2D[] vectors)
+        {
+            Vector2D sum = new Vector2D(0, 0);
+            foreach (Vector2D n in vectors)
+                sum += n;
+            return sum;
+        }
+
+        public static double[,] DotProduct3x3(this double[,] mA, double[,] mB)
+        {
+            if (mA.GetLength(0) == 3 && mA.GetLength(1) == 3 &&
+                mB.GetLength(0) == 3 && mB.GetLength(1) == 3)
+                throw new ArgumentException("Both matrices must be 3x3");
+
+            return new double[,]
+            {
+                { mA[0,0]*mB[0,0] + mA[0,1]*mB[1,0] + mA[0,2]*mB[2,0],
+                  mA[0,0]*mB[0,1] + mA[0,1]*mB[1,1] + mA[0,2]*mB[2,1],
+                  mA[0,0]*mB[0,2] + mA[0,1]*mB[1,2] + mA[0,2]*mB[2,2]  },
+
+                { mA[1,0]*mB[0,0] + mA[1,1]*mB[1,0] + mA[1,2]*mB[2,0],
+                  mA[1,0]*mB[0,1] + mA[1,1]*mB[1,1] + mA[1,2]*mB[2,1],
+                  mA[1,0]*mB[0,2] + mA[1,1]*mB[1,2] + mA[1,2]*mB[2,2]  },
+
+                { mA[2,0]*mB[0,0] + mA[2,1]*mB[1,0] + mA[2,2]*mB[2,0],
+                  mA[2,0]*mB[0,1] + mA[2,1]*mB[1,1] + mA[2,2]*mB[2,1],
+                  mA[2,0]*mB[0,2] + mA[2,1]*mB[1,2] + mA[2,2]*mB[2,2]  }
+            };
+        }
+
+        public static double[,][,] OuterProduct(this double[,] mA, double[,] mB)
+        {
+            int aWidth = mA.GetLength(0);
+            int aHeight = mA.GetLength(1);
+
+            var output = new double[aWidth, aHeight][,];
+            for (int j = 0; j < aHeight; j++)
+                for (int r = 0; r < aWidth; r++)
+                    output[r, j] = mB.Multiply(mA[r, j]);
+
+            return output;
+        }
+
+        public static double[][] OuterProduct(this double[] mA, double[] mB)
+        {
+            var output = new double[mA.Length][];
+            for (int j = 0; j < mA.Length; j++)
+                output[j] = mB.Multiply(mA[j]);
+
+            return output;
+        }
+
+        public static T[,] To2D<T>(this T[][] source)
+        {
+            try
+            {
+                int FirstDim = source.Length;
+                int SecondDim = source.GroupBy(row => row.Length).Single().Key; // throws InvalidOperationException if source is not rectangular
+
+                var result = new T[FirstDim, SecondDim];
+                for (int i = 0; i < FirstDim; ++i)
+                    for (int j = 0; j < SecondDim; ++j)
+                        result[i, j] = source[i][j];
+
+                return result;
+            }
+            catch (InvalidOperationException)
+            {
+                throw new InvalidOperationException("The given jagged array is not rectangular.");
+            }
+        }
+
+        /// <summary>
+        /// Performs an element-wise multiplication
+        /// </summary>
+        public static Vector<double> Multiply(this Vector<double> vA, Vector<double> vB)
+        {
+            double[] newV = vA.ToArray();
+            for (int i = 0; i < vA.Count && i < vB.Count; i++)
+            {
+                newV[i] *= vB[i];
+            }
+            return Vector<double>.Build.DenseOfArray(newV);
         }
     }
 }
