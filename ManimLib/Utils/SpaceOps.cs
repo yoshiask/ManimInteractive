@@ -6,8 +6,10 @@ using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
 using System.Collections.Generic;
 using MathNet.Spatial.Euclidean;
+using static ManimLib.Common;
+using static ManimLib.Constants;
 
-namespace ManimLib.Math
+namespace ManimLib.Utils
 {
     public static class SpaceOps
     {
@@ -16,15 +18,21 @@ namespace ManimLib.Math
         public const int Z = 2;
         public const int W = 3;
 
+        [Obsolete("Use v.L2Norm()", true)]
+        public static double GetNorm(Vector<double> v)
+        {
+            return v.L2Norm();
+        }
+
         public static Matrix<double> RotationMatrixTranspose(double angle, Vector<double> axis)
         {
-            if (axis[0] == 0 && axis[1] == 0)
+            if (axis[X] == 0 && axis[Y] == 0)
             {
                 // axis = [0, 0, z] case is common enough it's worth having a shortcut
-                int sign = Sign(axis[2]);
+                int sign = Sign(axis[Z]);
                 double cos_a = Cos(angle);
                 double sin_a = Sin(angle) * sign;
-                return Matrix<double>.Build.DenseOfArray(new double[,]
+                return NewMatrix(new double[,]
                 {
                     { cos_a, sin_a, 0 },
                     { -sin_a, cos_a, 0 },
@@ -75,10 +83,10 @@ namespace ManimLib.Math
         {
             var newV = new System.Numerics.Complex(v[0], v[1]) *
                 System.Numerics.Complex.Exp(new System.Numerics.Complex(0, angle));
-            return Vector.Build.DenseOfArray(new double[] { newV.Real, newV.Imaginary });
+            return NewVector(new double[] { newV.Real, newV.Imaginary });
         }
 
-        public static Vector<double> RotateVector(Vector<double> v, double angle, [Optional] Vector<double> axis)
+        public static Vector<double> RotateVector(Vector<double> v, double angle, Vector<double> axis = null)
         {
             if (axis == null)
                 axis = Vector.Build.SparseOfArray(new double[] { 0, 0, 1 });
@@ -101,7 +109,7 @@ namespace ManimLib.Math
                     return (Abs(r - c) < thickness) ? 1 : 0;
                 }
             ).CastToDoubleArray();
-            return Matrix<double>.Build.DenseOfArray(final);
+            return NewMatrix(final);
         }
 
         public static Matrix<double> GetMatrixIdentity(int dimension)
@@ -116,7 +124,7 @@ namespace ManimLib.Math
 
         public static Matrix<double> RotationAboutZAxis(double angle)
         {
-            return Matrix<double>.Build.DenseOfArray(new double[,] {
+            return NewMatrix(new double[,] {
                 { Cos(angle), -Sin(angle), 0 },
                 { Sin(angle), Cos(angle), 0 },
                 { 0, 0, 1 }
@@ -144,7 +152,7 @@ namespace ManimLib.Math
             {
                 theta = 0;
             }
-            Matrix<double> phiDown = Matrix<double>.Build.DenseOfArray(new double[,]
+            Matrix<double> phiDown = NewMatrix(new double[,]
             {
                 { Cos(phi),  0, Sin(phi) },
                 { 0,         1, 0        },
@@ -176,10 +184,10 @@ namespace ManimLib.Math
             return Vector3D.OfVector(v1).CrossProduct(Vector3D.OfVector(v2)).Normalize().ToVector();
         }
 
-        public static IEnumerable<Vector<double>> CompassDirections([Optional] Vector<double> startVector, int n = 4)
+        public static IEnumerable<Vector<double>> CompassDirections(Vector<double> startVector = null, int n = 4)
         {
             if (startVector == null)
-                startVector = Vector<double>.Build.DenseOfArray(new double[] { 1, 0, 0 });
+                startVector = NewVector(new double[] { 1, 0, 0 });
 
             double angle = PI * 2 / n;
             for (int k = 0; k < n; k++)
@@ -190,7 +198,7 @@ namespace ManimLib.Math
     
         public static Vector<double> ComplexToR3(System.Numerics.Complex num)
         {
-            return Vector<double>.Build.DenseOfArray(new double[] { num.Real, num.Imaginary, 0 });
+            return NewVector(new double[] { num.Real, num.Imaginary, 0 });
         }
 
         public static System.Numerics.Complex R3ToComplex(Vector<double> point)
@@ -243,7 +251,7 @@ namespace ManimLib.Math
             var d = (Det(lineA.Item1, lineA.Item2), Det(lineB.Item1, lineB.Item2));
             double x = Det(d, xDiff) / div;
             double y = Det(d, yDiff) / div;
-            return Vector<double>.Build.DenseOfArray(new double[] { x, y, 0 });
+            return NewVector(new double[] { x, y, 0 });
         }
 
         private static double Det((double, double) a, (double, double) b)
@@ -314,6 +322,47 @@ namespace ManimLib.Math
                 Det(point - c, a - point)
             };
             return crosses.All(cross => cross > 0);
+        }
+    
+        public static double GetWindingNumber(IList<Vector<double>> points)
+        {
+            double totalAngle = 0;
+            foreach (Tuple<Vector<double>, Vector<double>> pair in Iterables.AdjacentPairs(points))
+            {
+                double dAngle = GetVectorAngle(pair.Item2) - GetVectorAngle(pair.Item1);
+                dAngle = ((dAngle + PI) % TAU) - PI;
+                totalAngle += dAngle;
+            }
+            return totalAngle / TAU;
+        }
+
+        // Every function after this point is not built into the Python Manim library
+
+        public static Vector<double> GetZeroVector(int dimension)
+        {
+            return NewVector(Enumerable.Range(0, dimension).Cast<double>().ToArray());
+        }
+
+        public static IEnumerable<Vector<double>> SubdivideLine(IList<Vector<double>> points, int numOfSubdivisions = 1)
+        {
+            if (numOfSubdivisions <= 0)
+                return points;
+            if (points.Count < 2)
+                throw new ArgumentException("Cannot subdivide a line with no length");
+
+            var lineSegments = Iterables.AdjacentPairs(points);
+            List<Vector<double>> newPoints = new List<Vector<double>>();
+            foreach (Tuple<Vector<double>, Vector<double>> segment in lineSegments)
+            {
+                newPoints.Add(segment.Item1);
+                newPoints.Add(Midpoint(segment.Item1, segment.Item2));
+                newPoints.Add(segment.Item2);
+            }
+            return SubdivideLine(newPoints, numOfSubdivisions - 1);
+        }
+        public static IEnumerable<Vector<double>> SubdivideLine(int numOfSubdivisions = 1, params Vector<double>[] points)
+        {
+            return SubdivideLine(points.ToList(), numOfSubdivisions);
         }
     }
 }

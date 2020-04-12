@@ -9,71 +9,9 @@ namespace ManimLib
 {
     public class Common
     {
-        public static string ManimDirectory { get; set; } = Environment.GetEnvironmentVariable("MANIM_PATH", EnvironmentVariableTarget.User);
-        public static string ManimLibDirectory { get; } = System.IO.Path.Combine(ManimDirectory, "manimlib");
+        public static Func<double[], Vector<double>> NewVector = Vector<double>.Build.DenseOfArray;
+        public static Func<double[,], Matrix<double>> NewMatrix = Matrix<double>.Build.DenseOfArray;
 
-        public static readonly Dictionary<string, string> Colors = new Dictionary<string, string>() {
-            { "DARK_BLUE", "#236B8E" },
-            { "DARK_BROWN", "#8B4513" },
-            { "LIGHT_BROWN", "#CD853F" },
-            { "BLUE_E", "#1C758A" },
-            { "BLUE_D", "#29ABCA" },
-            { "BLUE_C", "#58C4DD" },
-            { "BLUE_B", "#9CDCEB" },
-            { "BLUE_A", "#C7E9F1" },
-            { "TEAL_E", "#49A88F" },
-            { "TEAL_D", "#55C1A7" },
-            { "TEAL_C", "#5CD0B3" },
-            { "TEAL_B", "#76DDC0" },
-            { "TEAL_A", "#ACEAD7" },
-            { "GREEN_E", "#699C52" },
-            { "GREEN_D", "#77B05D" },
-            { "GREEN_C", "#83C167" },
-            { "GREEN_B", "#A6CF8C" },
-            { "GREEN_A", "#C9E2AE" },
-            { "YELLOW_E", "#E8C11C" },
-            { "YELLOW_D", "#F4D345" },
-            { "YELLOW_C", "#FFFF00" },
-            { "YELLOW_B", "#FFEA94" },
-            { "YELLOW_A", "#FFF1B6" },
-            { "GOLD_E", "#C78D46" },
-            { "GOLD_D", "#E1A158" },
-            { "GOLD_C", "#F0AC5F" },
-            { "GOLD_B", "#F9B775" },
-            { "GOLD_A", "#F7C797" },
-            { "RED_E", "#CF5044" },
-            { "RED_D", "#E65A4C" },
-            { "RED_C", "#FC6255" },
-            { "RED_B", "#FF8080" },
-            { "RED_A", "#F7A1A3" },
-            { "MAROON_E", "#94424F" },
-            { "MAROON_D", "#A24D61" },
-            { "MAROON_C", "#C55F73" },
-            { "MAROON_B", "#EC92AB" },
-            { "MAROON_A", "#ECABC1" },
-            { "PURPLE_E", "#644172" },
-            { "PURPLE_D", "#715582" },
-            { "PURPLE_C", "#9A72AC" },
-            { "PURPLE_B", "#B189C6" },
-            { "PURPLE_A", "#CAA3E8" },
-            { "WHITE", "#FFFFFF" },
-            { "BLACK", "#000000" },
-            { "LIGHT_GRAY", "#BBBBBB" },
-            { "LIGHT_GREY", "#BBBBBB" },
-            { "GRAY", "#888888" },
-            { "GREY", "#888888" },
-            { "DARK_GREY", "#444444" },
-            { "DARK_GRAY", "#444444" },
-            { "GREY_BROWN", "#736357" },
-            { "PINK", "#D147BD" },
-            { "GREEN_SCREEN", "#00FF00" },
-            { "ORANGE", "#FF862F" },
-        };
-
-        public const int PixelHeight = 1440;
-        public const int PixelWidth = 2560;
-        public const double FrameHeight = 8;
-        public const double FrameWidth = (8 * PixelWidth / PixelHeight);
         //public static readonly Point FrameOrigin = new Point(FrameWidth / 2, FrameHeight / 2);
 
         public const string PY_TAB = @"    ";
@@ -114,6 +52,11 @@ namespace ManimLib
             return subset;
         }
 
+        public static IEnumerable<T> Zeros<T>(int length)
+        {
+            for (int i = 0; i < length; i++)
+                yield return default(T);
+        }
         public static Array Zeros(Type dataType, int dim, int length)
         {
             int[] lengths = new int[dim];
@@ -261,6 +204,14 @@ namespace ManimLib
             var output = new double[matrix.Length];
             for (int j = 0; j < matrix.Length; j++)
                 output[j] = matrix[j] * scalar;
+
+            return output;
+        }
+        public static Point2D[] Multiply(this Point2D[] points, double scalar)
+        {
+            var output = new Point2D[points.Length];
+            for (int j = 0; j < points.Length; j++)
+                output[j] = new Point2D(output[j].X * scalar, output[j].Y * scalar);
 
             return output;
         }

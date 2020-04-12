@@ -1,49 +1,76 @@
 ﻿using ManimLib.Math;
-using NumSharp;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
-using System.Numerics;
+using ManimLib.Rendering;
+using MathNet.Spatial.Euclidean;
+using System.Runtime.InteropServices;
+using MathNet.Numerics.LinearAlgebra;
+using static ManimLib.Constants;
+using static ManimLib.Common;
+using ManimLib.Utils;
+using System.Collections.ObjectModel;
+using Color = RL.Color;
+using SliceAndDice;
 
 namespace ManimLib.Visuals
 {
-    public class Mobject
+    public class Mobject : IList<Mobject>, IManimElement
     {
         #region Properties
         public Color Color { get; set; }
         public string Name { get; set; }
 
         public int Dimension { get; set; } = 3;
-        public object Target { get; set; }
+        public Mobject Target { get; set; }
         public List<Mobject> Submobjects { get; internal set; }
+        public List<Mobject> Parents { get; internal set; }
+        public List<Mobject> Family { get; internal set; }
 
         public List<Func<Mobject, double, Mobject>> Updaters { get; internal set; }
         public bool IsUpdatingSuspended { get; set; }
 
-        public Math.Point[] Points { get; internal set; }
+        public List<Vector<double>> Points { get; internal set; }
+
+        public int Count => Family.Count;
+
+        public bool IsReadOnly => throw new NotImplementedException();
+
+        public Mobject this[int index] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         #endregion
 
-        public Mobject(string name = null, Color color = null, int dim = 3, object target = null)
+        public Mobject(string name = null, Color color = default, int dim = 3, Mobject target = null)
         {
-            Color = color == null ? new Color(Common.Colors["WHITE"]) : color;
-            Name = this.GetType().ToString();
+            Submobjects = new List<Mobject>();
+            Parents = new List<Mobject>();
+            Family = new List<Mobject>() { this };
+            Color = color == null ? COLORS[Colors.WHITE] : color;
+            if (name == null)
+                Name = this.GetType().Name;
             Updaters = new List<Func<Mobject, double, Mobject>>();
             IsUpdatingSuspended = false;
+
             ResetPoints();
-            //GeneratePoints();
+            InitPoints();
+            InitColors();
         }
 
-        private void ResetPoints()
+        public void ResetPoints()
         {
             //Points = ArrayUtils.Zeros(typeof(Math.Point), (0, Dimension));
-            Array.Clear(Points, 0, Dimension);
+            //Array.Clear(Points, 0, Dimension);
+            Points = new List<Vector<double>>();
         }
 
-        public void SetPoints(params Math.Point[] points)
+        internal void InitPoints()
         {
-            Points = points;
+            return;
+        }
+
+        public void SetPoints(params Vector<double>[] points)
+        {
+            Points = points.ToList();
         }
 
         internal void InitColors()
@@ -51,36 +78,7 @@ namespace ManimLib.Visuals
             return;
         }
 
-        public Mobject Add(params Mobject[] submobjects)
-        {
-            if (submobjects.Contains(this))
-                throw new ArgumentException("Mobject cannot contain self.");
-            foreach (Mobject mobj in submobjects)
-            {
-                if (!Submobjects.Contains(mobj))
-                    Submobjects.Add(mobj);
-            }
-            return this;
-        }
-        public Mobject AddToBack(params Mobject[] submobjects)
-        {
-            if (submobjects.Contains(this))
-                throw new ArgumentException("Mobject cannot contain self.");
-            foreach (Mobject mobj in submobjects)
-            {
-                Submobjects.Remove(mobj);
-                Submobjects.Add(mobj);
-            }
-            return this;
-        }
-
-        public Mobject Remove(params Mobject[] submobjects)
-        {
-            foreach (Mobject mobj in submobjects)
-                Submobjects.Remove(mobj);
-            return this;
-        }
-
+        #region Updaters
         public Mobject Update(double dt = 0, bool recursive = true)
         {
             if (IsUpdatingSuspended)
@@ -146,516 +144,1130 @@ namespace ManimLib.Visuals
                     ResumeUpdating(recursive);
             return this;
         }
+        #endregion
 
-        public void Shift(params Vector2[] vtrs)
+        public Mobject Copy()
         {
-            Vector2 totalVectors = new Vector2(0, 0);
-            foreach (Vector2 v in vtrs)
+            var parents = Parents;
+            Parents = new List<Mobject>();
+            var copyMobj = (Mobject)MemberwiseClone();
+            Parents = parents;
+
+            copyMobj.Points = Points;
+            copyMobj.Submobjects = new List<Mobject>();
+            foreach (Mobject submobj in Submobjects)
+                copyMobj.Add(submobj.Copy());
+            copyMobj.MatchUpdaters(this);
+            return copyMobj;
+        }
+
+        public Mobject Deepcopy()
+        {
+            var parents = Parents;
+            Parents = new List<Mobject>();
+            Mobject result = (Mobject)MemberwiseClone();
+            result.Color = new Color(Color.A, Color);
+            result.Name = String.Copy(Name);
+            result.Points = ((Vector<double>[])Points.ToArray().Clone()).ToList();
+            result.Submobjects = ((Mobject[])Submobjects.ToArray().Clone()).ToList();
+            result.Updaters = ((Func<Mobject, double, Mobject>[])Updaters.ToArray().Clone()).ToList();
+            return result;
+        }
+
+        public Mobject GenerateTarget(bool useDeepcopy = false)
+        {
+            Target = null;  // Prevent exponential explosion
+            if (useDeepcopy)
+                Target = Deepcopy();
+            else
+                Target = Copy();
+            return Target;
+        }
+
+        #region Display
+        public byte[,] GetImage(Camera camera = null)
+        {
+            throw new NotImplementedException();
+            //camera.Clear();
+            //camera.Capture(this);
+            //return camera.GetImage();
+        }
+
+        public void Show(Camera camera)
+        {
+            throw new NotImplementedException();
+            //GetImage(camera).Show();
+        }
+        #endregion
+
+        #region Transforming operations
+        public Mobject SetPoints(IEnumerable<Vector<double>> points)
+        {
+            Points = points.ToList();
+            return this;
+        }
+
+        public Mobject ApplyToFamily(Func<Mobject, Mobject> func)
+        {
+            foreach (Mobject mobj in GetFamilyMembersWithPoints())
+                func(mobj);
+            return this;
+        }
+
+        public Mobject Shift(params Vector<double>[] vtrs)
+        {
+            Vector<double> totalVectors = SpaceOps.GetZeroVector(Dimension);
+            foreach (Vector<double> v in vtrs)
                 totalVectors += v;
             
-            for (int i = 0; i < Points.Length; i++)
+            for (int i = 0; i < Points.Count; i++)
             {
                 Points[i] += totalVectors;
             }
+            return this;
         }
 
-        public void Scale(double scaleFactor, Math.Point aboutPoint)
+        public Mobject Scale(double scaleFactor, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
         {
-            ApplyPointsFunctionAboutPoint(
-                points => Math.Point.Multiply(points, scaleFactor),
-                aboutPoint
+            ApplyPointFunctionAboutPoint(
+                points => points.Multiply(scaleFactor),
+                aboutPoint, aboutEdge
+            );
+            return this;
+        }
+
+        public Mobject RotateAboutOrigin(double angle, Vector<double> axis = null)
+        {
+            if (axis == null) axis = OUT;
+            Rotate(angle, axis, aboutPoint:SpaceOps.GetZeroVector(Dimension));
+            return this;
+        }
+
+        public Mobject Rotate(double angle, Vector<double> axis = null, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            if (axis == null) axis = OUT;
+
+            Matrix<double> rotationMatrixT = SpaceOps.RotationMatrixTranspose(angle, axis);
+            ApplyPointFunctionAboutPoint(point => {
+                return point.Multiply(axis);
+            }, aboutPoint);
+
+            return this;
+        }
+
+        public Mobject Flip(Vector<double> axis = null, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            if (axis == null) axis = UP;
+            Rotate(System.Math.PI, axis, aboutPoint, aboutEdge);
+            return this;
+        }
+
+        public Mobject Stretch(double factor, int dimesnion, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            ApplyPointsFunctionAboutPoint(points =>
+            {
+                List<Vector<double>> subset = points.GetRange(0, dimesnion);
+                subset.ForEach(p => p *= factor);
+                return subset;
+            }, aboutPoint, aboutEdge);
+            return this;
+        }
+
+        public Mobject ApplyFunction(Func<Vector<double>, Vector<double>> func, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            if (aboutPoint == null) aboutPoint = NewVector(new double[] { 0, 0 });
+            ApplyPointFunctionAboutPoint(func, aboutPoint, aboutEdge);
+            return this;
+        }
+
+        public Mobject ApplyFunctionToPosition(Func<Vector<double>, Vector<double>> func)
+        {
+            MoveTo(func(GetCenter()));
+            return this;
+        }
+
+        public Mobject ApplyFunctionToSubmobjectPositions(Func<Vector<double>, Vector<double>> func)
+        {
+            foreach (Mobject submobj in Submobjects)
+                submobj.ApplyFunctionToPosition(func);
+            return this;
+        }
+
+        public Mobject ApplyMatrix(Matrix<double> matrix, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            if (aboutPoint == null && aboutEdge == null)
+                aboutPoint = SpaceOps.GetZeroVector(Dimension);
+            Matrix<double> fullMatrix = Matrix<double>.Build.DenseIdentity(Dimension);
+            throw new NotImplementedException();
+
+            return this;
+        }
+
+        public Mobject ApplyComplexFunction(Func<System.Numerics.Complex, System.Numerics.Complex> func)
+        {
+            return ApplyFunction(
+                v =>
+                {
+                    System.Numerics.Complex xyComplex = func(new System.Numerics.Complex(v[0], v[1]));
+                    return NewVector(new double[] { xyComplex.Real, xyComplex.Imaginary, v[2] });
+                }
             );
         }
 
-        public void RotateAboutOrigin(decimal angle, object axis)
+        public Mobject Wag(Vector<double> direction = null, Vector<double> axis = null, double wagFactor = 1.0)
         {
-            //Rotate();
+            foreach (Mobject mobj in GetFamilyMembersWithPoints())
+            {
+                // TODO: Check if axis needs to be explicitly transposed or not
+                List<double> alphas = new List<double>();
+                foreach (Vector<double> p in Points)
+                    alphas.Add(p.DotProduct(axis));
+
+                alphas.Remove(alphas.Min());
+                alphas.ForEach(
+                    d => System.Math.Pow(d / alphas.Max(), wagFactor)
+                );
+                foreach (double d in alphas)
+                    mobj.Points.Add(direction.Multiply(wagFactor));
+            }
+            return this;
         }
 
-        public void ApplyPointsFunctionAboutPoint(Func<Math.Point[], Math.Point[]> func, Math.Point aboutPoint)
+        public Mobject ReversePoints()
         {
-            Points.Where(val => val != aboutPoint).ToArray();
+            foreach (Mobject mobj in GetFamilyMembersWithPoints())
+                mobj.Points.Reverse();
+            return this;
+        }
+
+        public Mobject Repeat(int count)
+        {
+            foreach (Mobject mobj in GetFamilyMembersWithPoints())
+            {
+                mobj.Points.Aggregate(
+                    SpaceOps.GetZeroVector(Dimension),
+                    (acc, x) => acc + x
+                );
+            }
+
+            return this;
+        }
+
+        public Mobject ApplyPointsFunctionAboutPoint(Func<List<Vector<double>>, List<Vector<double>>> func, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            if (aboutPoint == null)
+            {
+                if (aboutEdge == null)
+                    aboutEdge = ORIGIN;
+                aboutPoint = GetCriticalPoint(aboutEdge);
+            }
+
+            Points.Remove(aboutPoint);
             Points = func(Points);
-            Points.Concat(new Math.Point[] { aboutPoint });
+            Points.Add(aboutPoint);
+            return this;
+        }
+        public Mobject ApplyPointFunctionAboutPoint(Func<Vector<double>, Vector<double>> func, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            if (aboutPoint == null)
+            {
+                if (aboutEdge == null)
+                    aboutEdge = ORIGIN;
+                aboutPoint = GetCriticalPoint(aboutEdge);
+            }
+
+            Points.Remove(aboutPoint);
+            Points.ForEach(v => func(v));
+            Points.Add(aboutPoint);
+            return this;
         }
 
-        public class Shapes
+        [Obsolete("Use Rotate(double, axis)")]
+        public Mobject RotateInPlace(double angle, Vector<double> axis = null)
         {
-            public abstract class ShapeBase : IManimElement
+            return Rotate(angle, axis);
+        }
+
+        [Obsolete("Use Scale(scaleFactor, point)")]
+        public Mobject ScaleInPlace(double scaleFactor)
+        {
+            return Scale(scaleFactor, GetCriticalPoint(SpaceOps.GetZeroVector(Dimension)));
+        }
+
+        [Obsolete("Use Scale(scaleFactor, point)")]
+        public Mobject ScaleAboutPoint(double scaleFactor, Vector<double> point)
+        {
+            return Scale(scaleFactor, point);
+        }
+        #endregion
+
+        #region Positioning
+        public Mobject Center()
+        {
+            Shift(-GetCenter());
+            return this;
+        }
+
+        /// <summary>
+        /// Aligns the Mobject with specified edge or corner
+        /// </summary>
+        /// <param name="direction">A 2D vector pointing towards an edge or corner to align to</param>
+        /// <param name="buffer">Margin between edges of the Mobject and the edge/corner</param>
+        public Mobject AlignOnBorder(Vector<double> direction, double buffer = DEFAULT_MOBJECT_TO_EDGE_BUFFER)
+        {
+            Vector<double> targetPoint = direction.PointwiseSign()
+                .PointwiseMultiply(NewVector(new double[] { FRAME_X_RADIUS, FRAME_Y_RADIUS, 0 }));
+            Vector<double> pointToAlign = GetCriticalPoint(direction);
+            Vector<double> shiftVal = targetPoint - pointToAlign - (buffer * direction);
+            shiftVal = shiftVal.PointwiseMultiply(Vector<double>.Abs(direction.PointwiseSign()));
+            Shift(shiftVal);
+            return this;
+        }
+        
+        public Mobject ToCorner(Vector<double> corner = null, double buffer = DEFAULT_MOBJECT_TO_EDGE_BUFFER)
+        {
+            if (corner == null)
+                corner = LEFT + DOWN;
+            return AlignOnBorder(corner, buffer);
+        }
+
+        public Mobject ToEdge(Vector<double> edge = null, double buffer = DEFAULT_MOBJECT_TO_EDGE_BUFFER)
+        {
+            if (edge == null)
+                edge = LEFT + DOWN;
+            return AlignOnBorder(edge, buffer);
+        }
+
+        public Mobject NextTo(Mobject mobj, double buffer = DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
+            Mobject submobjectToAlign = null, int indexOfSubmobjectToAlign = -1,
+            Vector<double> direction = null, Vector<double> alignedEdge = null,
+            Vector<double> coorMask = null)
+        {
+            Mobject targetAligner;
+            if (indexOfSubmobjectToAlign >= 0)
+                targetAligner = mobj[indexOfSubmobjectToAlign];
+            else
+                targetAligner = mobj;
+            var targetPoint = targetAligner.GetCriticalPoint(alignedEdge + direction);
+
+            Mobject aligner;
+            if (submobjectToAlign != null)
+                aligner = submobjectToAlign;
+            else if (indexOfSubmobjectToAlign >= 0)
+                aligner = this[indexOfSubmobjectToAlign];
+            else
+                aligner = this;
+            Vector<double> pointToAlign = aligner.GetCriticalPoint(alignedEdge - direction);
+            Shift(
+                (targetPoint - pointToAlign + buffer * direction).PointwiseMultiply(coorMask)
+            );
+
+            return this;
+        }
+
+        public Mobject ShiftOntoScreen(double buffer = DEFAULT_MOBJECT_TO_MOBJECT_BUFFER)
+        {
+            var spaceLengths = new double[] { FRAME_X_RADIUS, FRAME_Y_RADIUS };
+            foreach (Vector<double> vect in new Vector<double>[] { UP, DOWN, LEFT, RIGHT })
             {
-                #region Properties
-                private string _name = "Shape";
-                public string Name {
-                    get {
-                        return _name;
-                    }
-                    set {
-                        var old = this;
-                        _name = value;
-                        OnShapeChanged(this, old);
-                    }
-                }
+                int dimension = Vector<double>.Abs(vect).MaximumIndex();
+                double maxVal = spaceLengths[dimension] - buffer;
+                Vector<double> edgeCenter = GetEdgeCenter(vect);
+                if (edgeCenter.DotProduct(vect) > maxVal)
+                    ToEdge(vect);
+            }
+            return this;
+        }
 
-                private string _fill = Common.Colors["BLACK"];
-                public string Fill {
-                    get {
-                        return _fill;
-                    }
-                    set {
-                        var old = this;
-                        _fill = value;
-                        OnShapeChanged(this, old);
-                    }
-                }
+        public bool IsOffScreen()
+        {
+            return GetLeft()[0] > FRAME_X_RADIUS ||
+                   GetRight()[0] < -FRAME_X_RADIUS ||
+                   GetBottom()[1] > FRAME_Y_RADIUS ||
+                   GetTop()[1] < -FRAME_Y_RADIUS;
+        }
 
-                private string _outline = Common.Colors["WHITE"];
-                public string Outline {
-                    get {
-                        return _outline;
-                    }
-                    set {
-                        var old = this;
-                        _outline = value;
-                        OnShapeChanged(this, old);
-                    }
-                }
+        [Obsolete("Use Stretch(factor, dimension, aboutPoint)")]
+        public Mobject StretchAboutPoint(double factor, int dimension, Vector<double> point)
+        {
+            return Stretch(factor, dimension, point);
+        }
 
-                private double _outlineThickness = 0;
-                public double OutlineThickness {
-                    get {
-                        return _outlineThickness;
-                    }
-                    set {
-                        var old = this;
-                        _outlineThickness = value;
-                        OnShapeChanged(this, old);
-                    }
+        [Obsolete("Use Stretch(factor, dimension)")]
+        public Mobject StretchInPlace(double factor, int dimension)
+        {
+            return Stretch(factor, dimension);
+        }
 
-                }
+        public Mobject RescaleToFit(double length, int dimension, bool stretch = false)
+        {
+            double oldLength = LengthOverDimension(dimension);
+            if (oldLength == 0)
+                return this;
+            if (stretch)
+                Stretch(length / oldLength, dimension);
+            else
+                Scale(length / oldLength);
+            return this;
+        }
 
-                private Rect _size = new Rect(100, 100);
-                public Rect Size {
-                    get {
-                        return _size;
-                    }
-                    set {
-                        var old = this;
-                        _size = value;
-                        OnSizeChanged(value, old.Size);
-                        OnShapeChanged(this, old);
-                    }
+        public Mobject StretchToFitWidth(double width)
+        {
+            return RescaleToFit(width, 0, true);
+        }
 
-                }
+        public Mobject StretchToFitHeight(double height)
+        {
+            return RescaleToFit(height, 1, true);
+        }
 
-                private Math.Point _location = new Math.Point(0, 0);
-                public Math.Point Location {
-                    get {
-                        return _location;
-                    }
-                    set {
-                        var old = this;
-                        _location = value;
-                        OnLocationChanged(value, old.Location);
-                        OnShapeChanged(this, old);
-                    }
+        public Mobject StretchToFitDepth(double depth)
+        {
+            return RescaleToFit(depth, 2, true);
+        }
 
-                }
+        public Mobject SetWidth(double width, bool stretch = false)
+        {
+            return RescaleToFit(width, 0, stretch);
+        }
 
-                public abstract string MobjType { get; }
-                #endregion
+        public Mobject SetHeight(double height, bool stretch = false)
+        {
+            return RescaleToFit(height, 1, stretch);
+        }
 
-                #region Events
-                public event ShapeChangedHandler OnShapeChanged;
-                public delegate void ShapeChangedHandler(ShapeBase current, ShapeBase old);
+        public Mobject SetDepth(double depth, bool stretch = false)
+        {
+            return RescaleToFit(depth, 2, stretch);
+        }
 
-                public event SizeChangedHandler OnSizeChanged;
-                public delegate void SizeChangedHandler(Rect current, Rect old);
+        public Mobject SetCoord(double value, int dimension, Vector<double> direction = null)
+        {
+            if (direction == null)
+                direction = ORIGIN;
+            double current = GetCoord(dimension, direction);
+            Vector<double> shiftVector = SpaceOps.GetZeroVector(Dimension);
+            shiftVector[dimension] = value - current;
+            Shift(shiftVector);
+            return this;
+        }
 
-                public event LocationChangedHandler OnLocationChanged;
-                public delegate void LocationChangedHandler(Math.Point current, Math.Point old);
-                #endregion
+        public Mobject SetX(double x, Vector<double> direction = null)
+        {
+            return SetCoord(x, 0, direction);
+        }
 
-                public Dictionary<string, AnimationMethod> AvailableAnimations = new Dictionary<string, AnimationMethod>();
-                public Dictionary<string, Type[]> AnimationArgs = new Dictionary<string, Type[]>();
-                public delegate string AnimationMethod(object[] args);
-                public abstract void LoadAnimations();
+        public Mobject SetY(double y, Vector<double> direction = null)
+        {
+            return SetCoord(y, 1, direction);
+        }
 
-                /// <summary>
-                /// Returns a string that initializes the mobject in manim for Python scenes.
-                /// </summary>
-                /// <returns></returns>
-                public string GetPyInitializer(string AddToEachLine)
-                {
-                    string init = $"{AddToEachLine}{Name} = {MobjType}()\r\n";
+        public Mobject SetZ(double z, Vector<double> direction = null)
+        {
+            return SetCoord(z, 2, direction);
+        }
 
-                    init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
-                    init += $"{AddToEachLine}{Name}.set_outline({Outline}, opacity=1.0)\r\n";
+        public Mobject SpaceOutMobjects(double factor = 1.5)
+        {
+            Scale(factor);
+            foreach (Mobject submobj in Submobjects)
+                submobj.Scale(1 / factor);
+            return this;
+        }
 
-                    init += $"{AddToEachLine}{Name}.set_height({Size.GetHeight()})\r\n";
-                    init += $"{AddToEachLine}{Name}.stretch_to_fit_width({Size.GetWidth()})\r\n";
+        public Mobject MoveTo(Mobject mobj, Vector<double> alignedEdge = null, Vector<double> coorMask = null)
+        {
+            return MoveTo(mobj.GetCriticalPoint(alignedEdge), alignedEdge, coorMask);
+        }
+        public Mobject MoveTo(Vector<double> point, Vector<double> alignedEdge = null, Vector<double> coorMask = null)
+        {
+            if (alignedEdge == null)
+                alignedEdge = ORIGIN;
+            if (coorMask == null)
+                coorMask = ONE_VECTOR;
 
-                    // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
-                    return init;
-                }
+            Vector<double> pointToAlign = GetCriticalPoint(alignedEdge);
+            Shift((point - pointToAlign).PointwiseMultiply(coorMask));
+            return this;
+        }
+        
+        public Mobject Replace(Mobject mobj, int dimensionToMatch = 0, bool stretch = false)
+        {
+            if (mobj.Points.Count <= 0 && mobj.Submobjects.Count <= 0)
+                throw new ArgumentException("Attempting to replace mobject with no points");
 
-                public string GetManimType()
-                {
-                    return MobjType;
-                }
+            if (stretch)
+            {
+                StretchToFitWidth(mobj.GetWidth());
+                StretchToFitHeight(mobj.GetHeight());
+            }
+            else
+            {
+                RescaleToFit(mobj.LengthOverDimension(dimensionToMatch), dimensionToMatch);
+            }
+            Shift(mobj.GetCenter() - GetCenter());
+            return this;
+        }
+
+        public Mobject Surround(Mobject mobj, int dimensionToMatch = 0, bool stretch = false, double buffer = MED_SMALL_BUFF)
+        {
+            Replace(mobj, dimensionToMatch, stretch);
+            double length = mobj.LengthOverDimension(dimensionToMatch);
+            ScaleInPlace((length + buffer) / length);
+            return this;
+        }
+
+        public Mobject PutStartAndEndOn(Vector<double> start, Vector<double> end)
+        {
+            (Vector<double> start, Vector<double> end) current = GetStartAndEnd();
+            Vector<double> currStart = current.start;
+            Vector<double> currEnd = current.end;
+            Vector<double> currVect = currEnd - currStart;
+            if (currVect.All(d => d == 0))
+                throw new Exception("Cannot position endpoints of closed loop");
+            Vector<double> targetVect = end - start;
+            Scale(
+                targetVect.L2Norm() / currVect.L2Norm(),
+                aboutPoint:currStart
+            );
+            Rotate(
+                SpaceOps.GetVectorAngle(targetVect) -
+                SpaceOps.GetVectorAngle(currVect),
+                aboutPoint:currStart
+            );
+            Shift(start - currStart);
+            return this;
+        }
+
+        public Mobject AddBackgroundRectangle(Color color = null, double opacity = 0.75)
+        {
+            // TODO: This does not behave well when the mobject has points,
+            // since it gets displayed on top
+            //from manimlib.mobject.shape_matchers import BackgroundRectangle
+            //BackgroundRectangle = new BackgroundRectangle(color, opacity);
+            //AddToBack(BackgroundRectangle);
+            throw new NotImplementedException();
+            return this;
+        }
+
+        public Mobject AddBackgroundRectangleToSubmobjects(Color color = null, double opacity = 0.75)
+        {
+            foreach (Mobject submobj in Submobjects)
+                submobj.AddBackgroundRectangle(color, opacity);
+            return this;
+        }
+        
+        public Mobject AddBackgroundRectangleToFamilyMembersWithPoints(Color color = null, double opacity = 0.75)
+        {
+            foreach (Mobject mobj in GetFamilyMembersWithPoints())
+                mobj.AddBackgroundRectangle(color, opacity);
+            return this;
+        }
+
+        #region Color
+        public Mobject SetColor(Color color = null, bool applyToSubmobj = true)
+        {
+            if (color == null)
+                color = COLORS[Colors.YELLOW_C];
+
+            foreach (Mobject submobj in Submobjects)
+                submobj.SetColor(color);
+            Color = color;
+            return this;
+        }
+        public Mobject SetColor(Colors color = Colors.YELLOW_C, bool applyToSubmobj = true)
+        {
+            return SetColor(COLORS[color], applyToSubmobj);
+        }
+
+        public Mobject SetColorsByGradient(params Color[] colors)
+        {
+            SetSubmobjectColorsByGradient(colors);
+            return this;
+        }
+
+        public Mobject SetColorsByRadialGradient(Vector<double> center = null, double radius = 1, Color innerColor = null, Color outerColor = null)
+        {
+            SetSubmobjectColorsByRadialGradient(center, radius, innerColor, outerColor);
+            return this;
+        }
+
+        public Mobject SetSubmobjectColorsByGradient(params Color[] colors)
+        {
+            if (colors.Length <= 0)
+                throw new ArgumentException("colors must contain at least one color");
+            else if (colors.Length == 1)
+                SetColor(colors[0]);
+
+            List<Mobject> mobjs = GetFamilyMembersWithPoints();
+            var newColors = Utils.Color.ColorGradient(mobjs.Count, colors);
+            foreach ((Mobject mobj, Color col) pair in mobjs.Zip(newColors, (m, c) => (m, c))) {
+                pair.mobj.SetColor(pair.col, false);
+            }
+            return this;
+        }
+
+        public Mobject SetSubmobjectColorsByRadialGradient(Vector<double> center = null, double radius = 1, Color innerColor = null, Color outerColor = null)
+        {
+            if (center == null)
+                center = GetCenter();
+
+            foreach (Mobject mobj in GetFamilyMembersWithPoints())
+            {
+                double t = (mobj.GetCenter() - center).L2Norm() / radius;
+                t = t < 1 ? t : 1; // Effectively clips t at 1
+                Color mobjColor = innerColor.Interpolate(outerColor, t);
+                mobj.SetColor(mobjColor, false);
             }
 
-            public class Rectangle : ShapeBase
+            return this;
+        }
+
+        public Mobject ToOriginalColor()
+        {
+            SetColor(Color);
+            return this;
+        }
+
+        public Mobject FadeTo(Color color, double alpha, bool applyToSubmobjects = true)
+        {
+            if (Points.Count > 0)
             {
-                public override string MobjType {
-                    get;
-                } = "Rectangle";
-
-                public override void LoadAnimations()
-                {
-                    AvailableAnimations.Add("ShowCreation", GetShowCreationAnim);
-                    AvailableAnimations.Add("FadeIn", GetFadeInAnim);
-                    AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
-                }
-                public string GetShowCreationAnim(object arg = null)
-                {
-                    return $"self.play(ShowCreation({Name}))";
-                }
-                public string GetDrawBorderThenFillAnim(object arg = null)
-                {
-                    return $"self.play(DrawBorderThenFill({Name}))";
-                }
-                public string GetFadeInAnim(object arg = null)
-                {
-                    return $"self.play(FadeIn({Name}))";
-                }
-                public string GetFadeOutAnim(object arg = null)
-                {
-                    return $"self.play(FadeOut({Name}))";
-                }
+                Color newColor = GetColor().Interpolate(color, alpha);
+                SetColor(newColor, false);
             }
-
-            public class Ellipse : ShapeBase
+            if (applyToSubmobjects)
             {
-                public override string MobjType {
-                    get;
-                } = "Ellipse";
-
-                public override void LoadAnimations()
-                {
-                    AvailableAnimations.Add("ShowCreation", GetShowCreationAnim);
-                    AvailableAnimations.Add("FadeIn", GetFadeInAnim);
-                    AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
-                }
-                public string GetShowCreationAnim(object[] args = null)
-                {
-                    return $"self.play(ShowCreation({Name}))";
-                }
-                public string GetDrawBorderThenFillAnim(object arg = null)
-                {
-                    return $"self.play(DrawBorderThenFill({Name}))";
-                }
-                public string GetFadeInAnim(object[] args = null)
-                {
-                    return $"self.play(FadeIn({Name}))";
-                }
-                public string GetFadeOutAnim(object[] args = null)
-                {
-                    return $"self.play(FadeOut({Name}))";
-                }
+                foreach (Mobject submobj in Submobjects)
+                    submobj.FadeTo(color, alpha);
             }
+            return this;
+        }
 
-            public class Text : ShapeBase
+        public Mobject Fade(double darkness = 0.5, bool applyToSubmobjects = true)
+        {
+            if (applyToSubmobjects)
+                foreach (Mobject submobj in Submobjects)
+                    submobj.Fade(darkness, applyToSubmobjects);
+            return this;
+        }
+        #endregion
+        #endregion
+
+        /// <summary>
+        /// This function needs to be reviewed by someone else.
+        /// </summary>
+        public double ReduceAcrossDimension(Func<List<double>, double> pointsFunc, Func<double, double> reduceFunc, int dimension)
+        {
+            if (Points == null || Points.Count == 0)
+                // Note, this default means things like empty VGroups
+                // will appear to have a center at [0, 0, 0]
+                return 0;
+            double values = pointsFunc(Points.GetColumn(dimension).ToList());
+            return reduceFunc(values);
+        }
+
+        public IEnumerable<Mobject> GetNonemptySubmobjects()
+        {
+            foreach (Mobject submobj in Submobjects)
+                if (submobj.Submobjects.Count > 0 || submobj.Points.Count > 0)
+                    yield return submobj;
+        }
+
+        #region Getters
+        public List<Vector<double>> GetAllPoints()
+        {
+            IEnumerable<Vector<double>> allPoints = Points;
+            foreach (Mobject mobj in Family)
             {
-                public override string MobjType {
-                    get;
-                } = "TextMobject";
-
-                public event TextContentChangedHandler OnTextContentChanged;
-                public delegate void TextContentChangedHandler(string current, string old);
-                private string _text = "";
-                public string TextContent {
-                    get {
-                        return _text;
-                    }
-                    set {
-                        OnTextContentChanged(value, _text);
-                        _text = value;
-                    }
-                }
-
-                public override void LoadAnimations()
-                {
-                    AvailableAnimations.Add("Write", GetWriteAnim);
-                    AvailableAnimations.Add("FadeIn", GetFadeInAnim);
-                    AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
-                }
-                public new string GetPyInitializer(string AddToEachLine)
-                {
-                    string init = $"{AddToEachLine}{Name} = TextMobject(\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}\"{TextContent}\"\r\n";
-                    //init += $"{Common.PY_TAB}text_to_color_map={{\"{TextContent}\"}}";
-                    init += $"{AddToEachLine})\r\n";
-
-                    init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
-                    init += $"{AddToEachLine}{Name}.set_outline({Outline}, opacity=1.0)\r\n";
-
-                    init += $"{AddToEachLine}{Name}.set_height({Size.GetHeight()})\r\n";
-                    //init += $"{Common.PY_TAB}{Common.PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
-
-                    // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
-                    return init;
-                }
-                public string GetWriteAnim(object[] args = null)
-                {
-                    return $"self.play(Write({Name}))";
-                }
-                public string GetFadeInAnim(object[] args = null)
-                {
-                    return $"self.play(FadeIn({Name}))";
-                }
-                public string GetFadeOutAnim(object[] args = null)
-                {
-                    return $"self.play(FadeOut({Name}))";
-                }
+                allPoints = allPoints.Concat(mobj.Points);
             }
+            return allPoints.ToList();
+        }
 
-            public class TeX : ShapeBase
+        public Color GetColor()
+        {
+            return Color;
+        }
+
+        public double GetExtremumAlongDimension(IList<Vector<double>> points = null, int dimension = 0, double key = 0)
+        {
+            if (points == null)
+                points = GetAllPoints();
+
+            IEnumerable<double> values = points.GetColumn(dimension);
+
+            if (key < 0)
+                return values.Min();
+            else if (key == 0)
+                return (values.Min() + values.Max()) / 2;
+            else
+                return values.Max();
+        }
+
+        /// <summary>
+        /// Picture a box bounding the mobject. Such a box has 
+        /// 9 'critical points': 4 corners, 4 edge center, and the
+        /// center. This returns one of them.
+        /// </summary>
+        public Vector<double> GetCriticalPoint(Vector<double> direction)
+        {
+            Vector<double> point = SpaceOps.GetZeroVector(Dimension);
+            var allPoints = GetAllPoints();
+            if (allPoints.Count == 0)
+                return point;
+            for (int d = 0; d < Dimension; d++)
             {
-                public override string MobjType {
-                    get;
-                } = "TexMobject";
-
-                public event TeXContentChangedHandler OnTeXContentChanged;
-                public delegate void TeXContentChangedHandler(string current, string old);
-                private string _tex = "x^2=0";
-                public string TeXContent {
-                    get {
-                        return _tex;
-                    }
-                    set {
-                        OnTeXContentChanged(value, _tex);
-                        _tex = value;
-                    }
-                }
-
-                public static string ChangeFontColor(string tex, string LaTeXcolor)
-                {
-                    if (LaTeXHelper.Colors.ContainsKey(LaTeXcolor))
-                    {
-                        return @"\colorbox{" + LaTeXcolor + "}{" + tex + "}";
-                    }
-                    else if (Common.Colors.ContainsKey(LaTeXcolor))
-                    {
-                        return @"\usepackage[dvipsnames]{xcolor}" + "\r\n" + @"\color{" + LaTeXcolor + "}{" + tex + "}";
-                    }
-                    else
-                    {
-                        return tex;
-                    }
-                }
-
-                public override void LoadAnimations()
-                {
-                    AvailableAnimations.Add("Write", GetWriteAnim);
-                    AvailableAnimations.Add("FadeIn", GetFadeInAnim);
-                    AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
-                }
-                public new string GetPyInitializer(string AddToEachLine)
-                {
-                    // TODO: Separate lines and add a tab to each one
-                    string EscapedText = "";
-                    foreach (string line in TeXContent.Lines())
-                    {
-                        EscapedText = AddToEachLine + Common.PY_TAB + TeXContent;
-                    }
-
-                    string init = $"{AddToEachLine}{Name} = TexMobject(\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}\"{LaTeXHelper.EscapeLaTeX(TeXContent)}\"\r\n";
-                    //init += $"{Common.PY_TAB}text_to_color_map={{\"{TextContent}\"}}";
-                    init += $"{AddToEachLine})\r\n";
-
-                    init += $"{AddToEachLine}{Name}.set_fill({Fill}, opacity=1.0)\r\n";
-                    init += $"{AddToEachLine}{Name}.set_outline({Outline}, opacity=1.0)\r\n";
-
-                    init += $"{AddToEachLine}{Name}.set_height({Size.GetHeight()})\r\n";
-                    //init += $"{Common.PY_TAB}{Common.PY_TAB}{Name}.stretch_to_fit_width({GetRelativeRect().Width * FrameWidth})\r\n";
-
-                    // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
-                    return init;
-                }
-                public string GetWriteAnim(object[] args = null)
-                {
-                    return $"self.play(Write({Name}))";
-                }
-                public string GetFadeInAnim(object[] args = null)
-                {
-                    return $"self.play(FadeIn({Name}))";
-                }
-                public string GetFadeOutAnim(object[] args = null)
-                {
-                    return $"self.play(FadeOut({Name}))";
-                }
+                point[d] = GetExtremumAlongDimension(allPoints, d, direction[d]);
             }
+            return point;
+        }
 
-            public class PiCreature : ShapeBase
+        public Vector<double> GetCenter()
+        {
+            return GetCriticalPoint(SpaceOps.GetZeroVector(Dimension));
+        }
+        public Vector<double> GetCorner(Vector<double> direction)
+        {
+            return GetCriticalPoint(direction);
+        }
+        public Vector<double> GetEdgeCenter(Vector<double> direction)
+        {
+            return GetCriticalPoint(direction);
+        }
+
+        public Vector<double> GetCenterOfMass()
+        {
+            // Actual Python code:
+            // return np.apply_along_axis(np.mean, 0, self.get_all_points())
+            // It looks like all this does is take the average of all vectors
+            return SpaceOps.CenterOfMass(Points.ToArray());
+        }
+
+        public Vector<double> GetBoundaryPoint(Vector<double> direction)
+        {
+            List<double> products = new List<double>();
+            foreach (Vector<double> point in Points)
             {
-                public override string MobjType {
-                    get;
-                } = "PiCreature";
-
-                public new string GetPyInitializer(string AddToEachLine)
-                {
-                    string init = $"{AddToEachLine}{Name} = {MobjType}()\r\n";
-
-                    init += $"{AddToEachLine}{Name}.set_color({Fill})\r\n";
-
-                    // Set sizing
-                    if (Size.GetHeight() < Size.GetWidth())
-                        init += $"{AddToEachLine}{Name}.set_height({Size.GetHeight()})\r\n";
-                    else
-                        init += $"{AddToEachLine}{Name}.set_width({Size.GetWidth()})\r\n";
-
-                    // Calculate vectors for positioning
-                    init += $"{AddToEachLine}{Name}.shift({Math.PyVector.PointToPythonVector(Location)})";
-                    return init;
-                }
-
-                #region Animations
-                public override void LoadAnimations()
-                {
-                    AvailableAnimations.Add("FadeIn", GetFadeInAnim);
-                    AvailableAnimations.Add("FadeOut", GetFadeOutAnim);
-                    AvailableAnimations.Add("Look", GetLookAnim);
-                    AvailableAnimations.Add("LookAt", GetLookAtAnim);
-                    AvailableAnimations.Add("Blink", GetBlinkAnim);
-                    AvailableAnimations.Add("MakeEyeContact", GetMakeEyeContactAnim);
-                    AvailableAnimations.Add("Shrug", GetShrugAnim);
-                    AvailableAnimations.Add("Flip", GetFlipAnim);
-                }
-                public string GetFadeInAnim(object arg = null)
-                {
-                    return $"self.play(FadeIn({Name}))";
-                }
-                public string GetFadeOutAnim(object arg = null)
-                {
-                    return $"self.play(FadeOut({Name}))";
-                }
-                /// <summary>
-                /// Returns a string that plays a Look animation [Accepts  <see cref="Point"/>]
-                /// </summary>
-                /// <param name="arg">Point to look at</param>
-                /// <returns></returns>
-                public string GetLookAnim(object arg)
-                {
-                    var point = (Point)arg;
-                    // TODO: Check if working
-                    return $"self.play({Name}.look({point}))";
-                }
-                /// <summary>
-                /// Returns a string that plays a LookAt animation [Accepts  <see cref="ShapeBase"/>]
-                /// </summary>
-                /// <param name="arg">Shape to look at</param>
-                /// <returns></returns>
-                public string GetLookAtAnim(object arg)
-                {
-                    var shape = arg as ShapeBase;
-                    // TODO: Check if working
-                    return $"self.play({Name}.look_at({shape.Name}))";
-                }
-                public string GetBlinkAnim(object arg = null)
-                {
-                    return $"self.play({Name}.blink())";
-                }
-                /// <summary>
-                /// Returns a string that plays an animation that makes eye contact with another pi creature [Accepts  <see cref="PiCreature"/>]
-                /// </summary>
-                /// <param name="arg">Pi creature to look at</param>
-                /// <returns></returns>
-                public string GetMakeEyeContactAnim(object arg)
-                {
-                    var shape = arg as PiCreature;
-                    // TODO: Check if working
-                    return $"self.play({Name}.make_eye_contact({shape.Name}))";
-                }
-                public string GetShrugAnim(object arg = null)
-                {
-                    return $"self.play({Name}.shrug())";
-                }
-                /// <summary>
-                /// Flips the shape
-                /// </summary>
-                /// <param name="arg">Direction to flip (as string)</param>
-                /// <returns></returns>
-                public string GetFlipAnim(object arg)
-                {
-                    return $"self.play({Name}.flip({arg}))";
-                }
-                #endregion
-
-                public static string ChangeSVGColor(string color)
-                {
-                    string[] SVG = System.IO.File.ReadAllLines(System.IO.Path.Combine(Common.ManimLibDirectory, @"files\PiCreatures_plain.svg"));
-                    SVG[6] = @"	.st1{fill:" + Common.Colors[color] + ";}";
-
-                    string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $@"ManimInteractive\");
-                    System.IO.Directory.CreateDirectory(path);
-                    path += $"PiCreatures_{color}.svg";
-                    System.IO.File.WriteAllLines(path, SVG);
-                    return path;
-                }
+                products.Add(point.DotProduct(direction)); 
             }
+            int index = products.IndexOf(products.Max());
+            return Points[index];
+        }
 
-            public class Graph : ShapeBase
+        public Vector<double> GetTop()
+        {
+            return GetEdgeCenter(UP);
+        }
+
+        public Vector<double> GetBottom()
+        {
+            return GetEdgeCenter(DOWN);
+        }
+
+        public Vector<double> GetLeft()
+        {
+            return GetEdgeCenter(LEFT);
+        }
+
+        public Vector<double> GetRight()
+        {
+            return GetEdgeCenter(RIGHT);
+        }
+
+        public Vector<double> GetZenith()
+        {
+            return GetEdgeCenter(OUT);
+        }
+
+        public Vector<double> GetNadir()
+        {
+            return GetEdgeCenter(IN);
+        }
+
+        public double LengthOverDimension(int dimension)
+        {
+            return ReduceAcrossDimension(points => points.Max(), d => d, dimension)
+                - ReduceAcrossDimension(points => points.Min(), d => d, dimension);
+        }
+
+        public double GetWidth()
+        {
+            return LengthOverDimension(0);
+        }
+
+        public double GetHeight()
+        {
+            return LengthOverDimension(1);
+        }
+
+        public double GetDepth()
+        {
+            return LengthOverDimension(2);
+        }
+
+        public double GetCoord(int dimension, Vector<double> direction = null)
+        {
+            if (direction == null)
+                direction = ORIGIN;
+            return GetExtremumAlongDimension(
+                dimension: dimension,
+                key: direction[dimension]
+            );
+        }
+
+        public double GetX(Vector<double> direction = null)
+        {
+            if (direction == null)
+                direction = ORIGIN;
+            return GetCoord(0, direction);
+        }
+
+        public double GetY(Vector<double> direction = null)
+        {
+            if (direction == null)
+                direction = ORIGIN;
+            return GetCoord(1, direction);
+        }
+
+        public double GetZ(Vector<double> direction = null)
+        {
+            if (direction == null)
+                direction = ORIGIN;
+            return GetCoord(2, direction);
+        }
+
+        public Vector<double> GetStart()
+        {
+            if (Points.Count <= 0)
+                throw new Exception("Mobject contains no points");
+            return Points.First();
+        }
+
+        public Vector<double> GetEnd()
+        {
+            if (Points.Count <= 0)
+                throw new Exception("Mobject contains no points");
+            return Points.Last();
+        }
+
+        public (Vector<double> start, Vector<double> end) GetStartAndEnd()
+        {
+            return (GetStart(), GetEnd());
+        }
+
+        /// <summary>
+        /// Don't use this, even Grant did not finish it
+        /// </summary>
+        public Vector<double> PointFromProportion(double alpha)
+        {
+            throw new NotImplementedException("Not implemented in Manim");
+        }
+
+        public Group GetPieces(int nPieces)
+        {
+            Mobject template = Copy();
+            template.Submobjects = new List<Mobject>();
+            List<int> alphas = Iterables.LinSpace(0, 1, nPieces + 1).ToList();
+            List<Mobject> mobjects = new List<Mobject>();
+            for (int i = 0; i < alphas.Count() - 1; i++)
             {
-                public override string MobjType {
-                    get;
-                } = "Rectangle";
-                public Dictionary<string, object> Config { get; set; } = new Dictionary<string, object>();
-
-                public new string GetPyInitializer(string AddToEachLine)
-                {
-                    string init = $"{AddToEachLine}CONFIG = {{\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"function\" : " + Config["function"] + ",\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"function_color\" : " + Config["function_color"] + ",\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"center_point\" : " + Config["center_point"] + ",\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"x_min\" : " + Config["x_min"] + ",\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"x_max\" : " + Config["x_max"] + ",\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"y_min\" : " + Config["y_min"] + ",\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"y_max\" : " + Config["y_max"] + ",\r\n";
-                    init += $"{AddToEachLine}{Common.PY_TAB}" + "\"graph_origin\" : " + Config["graph_origin"] + ",\r\n";
-                    init += $"{AddToEachLine}}}\r\n";
-                    return init;
-                }
-                public override void LoadAnimations()
-                {
-                    AvailableAnimations.Add("ShowCreation", GetShowCreationAnim);
-                    AvailableAnimations.Add("Transform", GetTransformAnim);
-                }
-                public string GetShowCreationAnim(object arg)
-                {
-                    string init = $"{(string)arg}self.setup_axes()\r\n";
-                    init += $"{(string)arg}func_graph = self.get_graph(\r\n";
-                    init += $"{(string)arg}{Common.PY_TAB}self.function,\r\n";
-                    init += $"{(string)arg}{Common.PY_TAB}self.function_color,\r\n";
-                    init += $"{(string)arg})\r\n";
-                    init += $"{(string)arg}self.play(\r\n";
-                    init += $"{(string)arg}{Common.PY_TAB}ShowCreation(func_graph, run_time = 2)\r\n";
-                    init += $"{(string)arg})";
-                    return init;
-                }
-                /// <summary>
-                /// 
-                /// </summary>
-                /// <param name="args">Graph to morph into</param>
-                /// <returns></returns>
-                public string GetTransformAnim(object arg)
-                {
-                    return $"self.play(Transform({Name}, {arg}))";
-                }
+                mobjects.Add(template.Copy().PointwiseBecomePartial(
+                    alphas[i], alphas[i + 1]
+                ));
             }
+            return new Group(mobjects);
+        }
+
+        public Vector<double> GetZIndexReferencePoint()
+        {
+            // Actual Python code:
+            // z_index_group = getattr(self, "z_index_group", self)
+            // return z_index_group.get_center()
+            return ORIGIN;
+        }
+        #endregion
+
+        #region Match
+        public Mobject MatchColor(Mobject mobj)
+        {
+            return SetColor(mobj.GetColor());
+        }
+
+        public Mobject MatchDimensionSize(Mobject mobj, int dimension, bool stretch = false)
+        {
+            return RescaleToFit(mobj.LengthOverDimension(dimension), dimension, stretch);
+        }
+
+        public Mobject MatchWidth(Mobject mobj, bool stretch = false)
+        {
+            return MatchDimensionSize(mobj, 0, stretch);
+        }
+
+        public Mobject MatchHeight(Mobject mobj, bool stretch = false)
+        {
+            return MatchDimensionSize(mobj, 1, stretch);
+        }
+
+        public Mobject MatchDepth(Mobject mobj, bool stretch = false)
+        {
+            return MatchDimensionSize(mobj, 2, stretch);
+        }
+
+        public Mobject MatchCoord(Mobject mobj, int dimension, Vector<double> direction = null)
+        {
+            return SetCoord(
+                mobj.GetCoord(dimension, direction),
+                dimension, direction
+            );
+        }
+
+        public Mobject MatchX(Mobject mobj, Vector<double> direction = null)
+        {
+            return MatchCoord(mobj, 0, direction);
+        }
+
+        public Mobject MatchY(Mobject mobj, Vector<double> direction = null)
+        {
+            return MatchCoord(mobj, 1, direction);
+        }
+
+        public Mobject MatchZ(Mobject mobj, Vector<double> direction = null)
+        {
+            return MatchCoord(mobj, 2, direction);
+        }
+
+        public Mobject AlignTo(Vector<double> point, Vector<double> direction = null)
+        {
+            if (direction == null)
+                direction = ORIGIN;
+            for (int d = 0; d <= Dimension; d++)
+            {
+                if (direction[d] != 0)
+                    SetCoord(point[d], d, direction);
+            }
+            return this;
+        }
+        public Mobject AlignTo(Mobject mobj, Vector<double> direction = null)
+        {
+            return AlignTo(mobj.GetCriticalPoint(direction), direction);
+        }
+        #endregion
+
+        #region Family matters
+        public Mobject AssembleFamily()
+        {
+            List<Mobject> subFamilies = new List<Mobject>();
+            foreach (Mobject mobj in Submobjects)
+            {
+                subFamilies = subFamilies.Concat(mobj.Family).ToList();
+            }
+            Family = new List<Mobject>() { this }.Concat(subFamilies).ToList();
+            foreach (Mobject parent in Parents)
+            {
+                parent.AssembleFamily();
+            }
+            return this;
+        }
+
+        public List<Mobject> GetFamilyMembersWithPoints()
+        {
+            var output = new List<Mobject>();
+            foreach (Mobject mobj in Family)
+                if (mobj.Points.Count > 0)
+                    output.Add(mobj);
+            return output;
+        }
+
+        public Mobject Arrange(Vector<double> direction = null, bool center = true,
+            double buffer = DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
+            Mobject submobjectToAlign = null, int indexOfSubmobjectToAlign = -1,
+            Vector<double> alignedEdge = null, Vector<double> coorMask = null)
+        {
+            if (direction == null)
+                direction = RIGHT;
+            for (int i = 0; i < Submobjects.Count - 1; i++)
+            {
+                Mobject m1 = Submobjects[i];
+                Mobject m2 = Submobjects[i + 1];
+                m2.NextTo(m1, buffer, submobjectToAlign, indexOfSubmobjectToAlign, direction,
+                    alignedEdge, coorMask);
+            }
+            if (center)
+                Center();
+            return this;
+        }
+
+        public Mobject ArrangeInGrid(int nRows = -1, int nCols = -1)
+        {
+            if (nRows <= 0 && nCols <= 0)
+                nCols = (int)System.Math.Sqrt(Submobjects.Count);
+
+            Vector<double> v1 = ORIGIN, v2 = ORIGIN;
+            int n = 0;
+
+            if (nRows > 0)
+            {
+                v1 = RIGHT;
+                v2 = DOWN;
+                n = Submobjects.Count / nRows;
+            }
+            else if (nCols > 0)
+            {
+                v1 = DOWN;
+                v2 = RIGHT;
+                n = Submobjects.Count / nCols;
+            }
+            //throw new NotImplementedException("See the following comments in the source code.");
+            // Actual Python code:
+            // Group(*[
+            //     Group(*submobs[i: i + n]).arrange(v1, **kwargs)
+            //     for i in range(0, len(submobs), n)
+            // ]).arrange(v2, **kwargs)
+            List<Group> groups = new List<Group>();
+            for (int i = 0; i < Submobjects.Count; i += n)
+            {
+                groups.Concat(new Group(
+                    new ArraySlice<Mobject>(Submobjects).GetSlice($"{i}:{i + n}")[0].Arrange(v1)
+                ));
+            }
+            new Group(groups).Arrange(v2);
+            return this;
+        }
+
+        public Mobject Sort(Func<Vector<double>, double> pointToNumFunc = null, Func<Mobject, double> submobjFunc)
+        {
+            if (submobjFunc == null)
+                submobjFunc = m => pointToNumFunc(m.GetCenter());
+            Submobjects.Sort((m1, m2) =>
+            {
+                return submobjFunc(m1).CompareTo(submobjFunc(m2));
+            });
+            return this;
+        }
+
+        public void Shuffle(bool recursive = false)
+        {
+            if (recursive)
+                foreach (Mobject submobj in Submobjects)
+                    submobj.Shuffle(true);
+            var rand = new Random();
+            Submobjects.OrderBy(x => rand.Next()).ToList();
+        }
+
+        public Mobject Add(params Mobject[] submobjects)
+        {
+            if (submobjects.Contains(this))
+                throw new ArgumentException("Mobject cannot contain self.");
+            foreach (Mobject mobj in submobjects)
+            {
+                if (!Submobjects.Contains(mobj))
+                    Submobjects.Add(mobj);
+                if (!mobj.Parents.Contains(this))
+                    mobj.Parents.Add(this);
+            }
+            return this;
+        }
+        public Mobject AddToBack(params Mobject[] submobjects)
+        {
+            if (submobjects.Contains(this))
+                throw new ArgumentException("Mobject cannot contain self.");
+            foreach (Mobject mobj in submobjects)
+            {
+                Submobjects.Remove(mobj);
+                Submobjects.Add(mobj);
+            }
+            return this;
+        }
+
+        public Mobject Remove(params Mobject[] submobjects)
+        {
+            foreach (Mobject mobj in submobjects)
+            {
+                if (Submobjects.Contains(mobj))
+                    Submobjects.Remove(mobj);
+                if (mobj.Parents.Contains(mobj))
+                    mobj.Parents.Remove(this);
+            }
+            return this;
+        }
+
+        public Mobject Replace(int index, Mobject newSubmob)
+        {
+            Mobject oldSubmob = Submobjects[index];
+            if (oldSubmob.Parents.Contains(this))
+                oldSubmob.Parents.Remove(this);
+            Submobjects[index] = newSubmob;
+            return this;
+        }
+
+        public Mobject[] Split()
+        {
+            Mobject[] result = Points.Count > 0 ? new Mobject[] { this } : new Mobject[] { };
+            return result.Concat(Submobjects).ToArray();
+        }
+
+        public Mobject SetSubmobjects(IEnumerable<Mobject> submobjects)
+        {
+            Submobjects = submobjects.ToList();
+            return this;
+        }
+
+        public int IndexOf(Mobject item)
+        {
+            return Split().ToList().IndexOf(item);
+        }
+
+        public void Insert(int index, Mobject item)
+        {
+            Submobjects.Insert(index - 1, item);
+        }
+
+        public void RemoveAt(int index)
+        {
+            Remove(Split()[index - 1]);
+        }
+
+        public void Add(Mobject item)
+        {
+            Add(item);
+        }
+
+        public void Clear()
+        {
+            Submobjects.Clear();
+        }
+
+        public bool Contains(Mobject item)
+        {
+            return Submobjects.Contains(item) || item == this;
+        }
+
+        public void CopyTo(Mobject[] array, int arrayIndex)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Remove(Mobject item)
+        {
+            var old = this;
+            return Remove(new Mobject[] { item }) != old;
+        }
+
+        public IEnumerator<Mobject> GetEnumerator()
+        {
+            return Split().ToList().GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Split().GetEnumerator();
+        }
+        #endregion
+
+        public string GetManimType()
+        {
+            return "Mobject";
         }
     }
 
@@ -669,47 +1281,51 @@ namespace ManimLib.Visuals
 
     public class Group : Mobject, ICollection<Mobject>
     {
-        private List<Mobject> Mobjects;
+        private IList<Mobject> Mobjects;
 
         public Group(params Mobject[] mobjects)
         {
             Mobjects = mobjects.ToList();
         }
-        public Group(List<Mobject> mobjects)
+        public Group(IList<Mobject> mobjects)
         {
             Mobjects = mobjects;
         }
+        public Group(IEnumerable<Mobject> mobjects)
+        {
+            Mobjects = mobjects.ToList();
+        }
 
-        public int Count => Mobjects.Count;
+        public new int Count => Mobjects.Count;
 
-        public bool IsReadOnly => false;
+        public new bool IsReadOnly => false;
 
-        public void Add(Mobject item)
+        public new void Add(Mobject item)
         {
             Mobjects.Add(item);
         }
 
-        public void Clear()
+        public new void Clear()
         {
             Mobjects.Clear();
         }
 
-        public bool Contains(Mobject item)
+        public new bool Contains(Mobject item)
         {
             return Mobjects.Contains(item);
         }
 
-        public void CopyTo(Mobject[] array, int arrayIndex)
+        public new void CopyTo(Mobject[] array, int arrayIndex)
         {
             Mobjects.CopyTo(array, arrayIndex);
         }
 
-        public IEnumerator<Mobject> GetEnumerator()
+        public new IEnumerator<Mobject> GetEnumerator()
         {
             return Mobjects.GetEnumerator();
         }
 
-        public bool Remove(Mobject item)
+        public new bool Remove(Mobject item)
         {
             return Mobjects.Remove(item);
         }
@@ -722,41 +1338,36 @@ namespace ManimLib.Visuals
 
     public class Point : Mobject
     {
-        public decimal X, Y;
-        public decimal ArtificialWidth, ArtificialHeight = 1e-6m;
+        public Vector<double> Location;
+        public double ArtificialWidth, ArtificialHeight = 1e-6;
 
-        public Point(int x = 0, int y = 0)
+        public Point(params int[] components)
         {
-            X = x;
-            Y = y;
+            Location = NewVector(components.Cast<double>().ToArray());
         }
-        public Point(double x = 0, double y = 0)
+        public Point(params double[] components)
         {
-            X = (decimal)x;
-            Y = (decimal)y;
+            Location = NewVector(components);
         }
-        public Point(float x = 0, float y = 0)
+        public Point(params float[] components)
         {
-            X = (decimal)x;
-            Y = (decimal)y;
+            Location = NewVector(components.Cast<double>().ToArray());
         }
-        public Point(decimal x = 0, decimal y = 0)
+        public Point(params decimal[] components)
         {
-            X = x;
-            Y = y;
+            Location = NewVector(components.Cast<double>().ToArray());
         }
-        public Point(Vector2 v)
+        public Point(Vector<double> v)
         {
-            X = (decimal)v.X;
-            Y = (decimal)v.Y;
+            Location = v.Clone();
         }
 
-        public decimal GetWidth()
+        public double GetWidth()
         {
             return ArtificialWidth;
         }
 
-        public decimal GetHeight()
+        public double GetHeight()
         {
             return ArtificialWidth;
         }

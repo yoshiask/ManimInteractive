@@ -8,6 +8,8 @@
     <PackageReference Include="MathNet.Numerics" Version="4.9.0" />
     <PackageReference Include="MathNet.Spatial" Version="0.5.0" />
     <PackageReference Include="NumSharp" Version="0.20.5" />
+    <PackageReference Include="RL.Color" Version="0.1.2" />
+    <PackageReference Include="SliceAndDice" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

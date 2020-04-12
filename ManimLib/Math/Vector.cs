@@ -1,10 +1,10 @@
-﻿using System.Numerics;
+﻿using MathNet.Spatial.Euclidean;
 
 namespace ManimLib.Math
 {
     public static class PyVector
     {
-        public static string ToPythonVector(Vector2 v)
+        public static string ToPythonVector(Vector2D v)
         {
             string result = "";
             result += v.X.ToString();
@@ -16,19 +16,19 @@ namespace ManimLib.Math
 
             return result;
         }
-        public static string PointToPythonVector(Point p)
+        public static string PointToPythonVector(Point2D p)
         {
-            return ToPythonVector(new Vector2((float)p.X, (float)p.Y));
+            return ToPythonVector(new Vector2D(p.X, p.Y));
         }
         public static string PointToPythonVector(decimal x, decimal y)
         {
             return ToPythonVector(new Vector2((float)x, (float)y));
         }
 
-        public static readonly Vector2 UP = new Vector2(0, 1);
-        public static readonly Vector2 DOWN = new Vector2(0, -1);
-        public static readonly Vector2 LEFT = new Vector2(-1, 0);
-        public static readonly Vector2 RIGHT = new Vector2(1, 0);
-        public static readonly Vector2 ORIGIN = new Vector2(0, 0);
+        public static readonly Vector2D UP = new Vector2D(0, 1);
+        public static readonly Vector2D DOWN = new Vector2D(0, -1);
+        public static readonly Vector2D LEFT = new Vector2D(-1, 0);
+        public static readonly Vector2D RIGHT = new Vector2D(1, 0);
+        public static readonly Vector2D ORIGIN = new Vector2D(0, 0);
     }
 }

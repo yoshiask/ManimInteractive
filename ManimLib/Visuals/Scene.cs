@@ -1,20 +1,23 @@
-﻿using System;
+﻿using ManimLib.Utils;
+using MathNet.Numerics.LinearAlgebra;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text;
+using static ManimLib.Common;
 
 namespace ManimLib.Visuals
 {
     public class Scene
     {
         #region Properties
-        public List<Mobject.Shapes.ShapeBase> Objects {
+        public List<Mobject> Objects {
             get {
-                var _objects = new List<IManimElement>(Commands).FindAll((e) => e.GetType() == typeof(Mobject.Shapes.ShapeBase));
-                List<Mobject.Shapes.ShapeBase> objects = new List<Mobject.Shapes.ShapeBase>();
+                var _objects = new List<IManimElement>(Commands).FindAll((e) => e.GetType() == typeof(Mobject));
+                List<Mobject> objects = new List<Mobject>();
                 foreach (IManimElement e in _objects)
                 {
-                    objects.Add((Mobject.Shapes.ShapeBase)e);
+                    objects.Add((Mobject)e);
                 }
                 return objects;
             }
@@ -62,30 +65,31 @@ namespace ManimLib.Visuals
             SetShapeZIndex(name, 0);
         }
 
-        public void SetShapeLocation(string name, Math.Point p)
+        public void SetShapeLocation(string name, Vector<double> p)
         {
             var shape = GetShape(name);
             if (shape != null)
             {
                 var newShape = shape;
-                newShape.Location = p;
+                //newShape.Location = p;
                 SetShape(name, newShape);
             }
         }
-        public Math.Point GetShapeLocation(string name)
+        public Vector<double> GetShapeLocation(string name)
         {
             var shape = GetShape(name);
             if (shape != null)
             {
-                return shape.Location;
+                throw new NotImplementedException();
+                //return shape.Location;
             }
             else
             {
-                return new Math.Point();
+                return NewVector(Iterables.Zeros<double>(2));
             }
         }
 
-        public void SetShape(string name, Mobject.Shapes.ShapeBase newShape)
+        public void SetShape(string name, Mobject newShape)
         {
             var shape = GetShape(name);
             if (shape != null)
@@ -93,7 +97,7 @@ namespace ManimLib.Visuals
                 Objects[Objects.IndexOf(shape)] = newShape;
             }
         }
-        public Mobject.Shapes.ShapeBase GetShape(string name)
+        public Mobject GetShape(string name)
         {
             return Objects.Find((s) => s.Name == name);
         }
@@ -101,7 +105,7 @@ namespace ManimLib.Visuals
         {
             Objects.Remove(GetShape(name));
         }
-        public void RemoveShape(Mobject.Shapes.ShapeBase shape)
+        public void RemoveShape(Mobject shape)
         {
             Objects.Remove(shape);
         }

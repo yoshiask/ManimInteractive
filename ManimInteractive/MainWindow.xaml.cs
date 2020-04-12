@@ -41,6 +41,8 @@ namespace ManimInteractive
                     System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "manim"),
                     EnvironmentVariableTarget.User
                 );
+
+            ManimLib.Utils.Iterables.AdjacentPairs(new int[] { 1, 2, 3, 4, 5 });
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
