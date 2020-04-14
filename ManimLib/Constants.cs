@@ -7,7 +7,7 @@ using static ManimLib.Common;
 namespace ManimLib
 {
     public static class Constants
-            {
+    {
         // TODO: Set these to PRODUCTION_QUALITY_CAMERA_CONFIG["pixel_height"]
         public const double DEFAULT_PIXEL_HEIGHT = 1440;
         public const double DEFAULT_PIXEL_WIDTH = 2560;

@@ -63,7 +63,7 @@ namespace ManimLib.Visuals
             Points = new List<Vector<double>>();
         }
 
-        internal void InitPoints()
+        internal virtual void InitPoints()
         {
             return;
         }
@@ -73,7 +73,7 @@ namespace ManimLib.Visuals
             Points = points.ToList();
         }
 
-        internal void InitColors()
+        internal virtual void InitColors()
         {
             return;
         }
@@ -247,9 +247,9 @@ namespace ManimLib.Visuals
         {
             if (axis == null) axis = OUT;
 
-            Matrix<double> rotationMatrixT = SpaceOps.RotationMatrixTranspose(angle, axis);
+            Matrix<double> rotationMatrix = SpaceOps.RotationMatrix(angle, axis);
             ApplyPointFunctionAboutPoint(point => {
-                return point.Multiply(axis);
+                return NewVector((point.ToRowMatrix() * rotationMatrix).ToRowMajorArray());
             }, aboutPoint);
 
             return this;
@@ -973,7 +973,7 @@ namespace ManimLib.Visuals
             for (int i = 0; i < alphas.Count() - 1; i++)
             {
                 mobjects.Add(template.Copy().PointwiseBecomePartial(
-                    alphas[i], alphas[i + 1]
+                    this, alphas[i], alphas[i + 1]
                 ));
             }
             return new Group(mobjects);
@@ -984,6 +984,7 @@ namespace ManimLib.Visuals
             // Actual Python code:
             // z_index_group = getattr(self, "z_index_group", self)
             // return z_index_group.get_center()
+            // Problem: z_index_group isn't defined anywhere
             return ORIGIN;
         }
         #endregion
@@ -1135,7 +1136,7 @@ namespace ManimLib.Visuals
             return this;
         }
 
-        public Mobject Sort(Func<Vector<double>, double> pointToNumFunc = null, Func<Mobject, double> submobjFunc)
+        public Mobject Sort(Func<Vector<double>, double> pointToNumFunc = null, Func<Mobject, double> submobjFunc = null)
         {
             if (submobjFunc == null)
                 submobjFunc = m => pointToNumFunc(m.GetCenter());
@@ -1262,6 +1263,169 @@ namespace ManimLib.Visuals
         IEnumerator IEnumerable.GetEnumerator()
         {
             return Split().GetEnumerator();
+        }
+        #endregion
+
+        #region Alignment
+        public void AlignData(Mobject mobj)
+        {
+            NullPointAlign(mobj);
+            AlignSubmobjects(mobj);
+            AlignPoints(mobj);
+            foreach ((Mobject m1, Mobject m2) in Submobjects.Zip(mobj.Submobjects, (s1, s2) => (s1,s1)))
+            {
+                m1.AlignData(m2);
+            }
+        }
+
+        public Vector<double> GetPointMobject(Vector<double> center = null)
+        {
+            throw new NotImplementedException($"get_point_mobject not implemented for {GetType().Name}");
+        }
+
+        public Mobject AlignPoints(Mobject mobj)
+        {
+            int count1 = Points.Count;
+            int count2 = mobj.Points.Count;
+            if (count1 < count2)
+                AlignPointsWithLarger(mobj);
+            else
+                mobj.AlignPointsWithLarger(this);
+            return this;
+        }
+
+        public void AlignPointsWithLarger(Mobject largerMobj)
+        {
+            throw new NotImplementedException("This function has not yet been implemented in Manim");
+        }
+
+        public Mobject AlignSubmobjects(Mobject mobj)
+        {
+            Mobject mobj1 = this;
+            Mobject mobj2 = mobj;
+            int n1 = mobj1.Submobjects.Count;
+            int n2 = mobj2.Submobjects.Count;
+            mobj1.AddNMoreSubmobjects(System.Math.Max(0, n2 - n1));
+            mobj2.AddNMoreSubmobjects(System.Math.Max(0, n1 - n2));
+            return this;
+        }
+
+        /// <summary>
+        /// If an mobject with points is being aligned to
+        /// one without, treat both as groups, and push
+        /// the one with points into its own submobjects
+        /// list.
+        /// </summary>
+        public Mobject NullPointAlign(Mobject mobj)
+        {
+            foreach ((Mobject m1, Mobject m2) in this.Zip(mobj, (p1, p2) => (p1, p2))) {
+                if (m1.Points.Count <= 0 && m2.Points.Count > 0)
+                    m2.PushSelfIntoSubmobjects();
+            }
+            foreach ((Mobject m1, Mobject m2) in mobj.Zip(this, (p1, p2) => (p1, p2)))
+            {
+                if (m1.Points.Count <= 0 && m2.Points.Count > 0)
+                    m2.PushSelfIntoSubmobjects();
+            }
+            return this;
+        }
+
+        public Mobject PushSelfIntoSubmobjects()
+        {
+            Mobject copy = Copy();
+            copy.Submobjects = new List<Mobject>();
+            ResetPoints();
+            Add(copy);
+            return this;
+        }
+
+        public Mobject AddNMoreSubmobjects(int n)
+        {
+            if (n == 0)
+                return null;
+
+            int curr = Submobjects.Count;
+            if (curr == 0)
+            {
+                for (int k = 0; k <= n; k++) {
+                    GetPointMobject();
+                }
+                return null;
+            }
+
+            int target = curr + n;
+            // TODO: factor this out to utils so as to reuse
+            // with VMobject.insert_n_curves
+            List<int> repeatIndicies = new List<int>();
+            for (int i = 0; i < target; i++)
+                repeatIndicies.Add((i * curr) / target);
+            List<int> splitFactors = new List<int>();
+            for (int i = 0; i < curr; i++)
+                splitFactors.Add(repeatIndicies[i] == i ? 1 : 0);
+            List<Mobject> newSubmobjs = new List<Mobject>();
+            foreach ((Mobject submobj, int sf) in Submobjects.Zip(splitFactors, (a,b) => (a,b))) {
+                newSubmobjs.Add(submobj);
+                for (int k = 0; k < sf; k++)
+                    newSubmobjs.Add(submobj.Copy().Fade(1));
+            }
+            Submobjects = newSubmobjs;
+            return this;
+        }
+
+        public Mobject RepeatSubmobject(Mobject submobj)
+        {
+            return submobj.Copy();
+        }
+
+        /// <summary>
+        /// Turns self into an interpolation between mobj1 and mobj2.
+        /// </summary>
+        public Mobject Interpolate(Mobject mobj1, Mobject mobj2, double alpha,
+            Func<IEnumerable<Vector<double>>, IEnumerable<Vector<double>>, double, IEnumerable<Vector<double>>> pathFunc = null)
+        {
+            if (pathFunc == null)
+                pathFunc = Paths.StraightPath;
+            Points = pathFunc(mobj1.Points, mobj2.Points, alpha).ToList();
+            InterpolateColor(mobj1, mobj2, alpha);
+            return this;
+        }
+
+        public Mobject InterpolateColor(Mobject mobj1, Mobject mobj2, double alpha)
+        {
+            // To implement in subclass
+            return this;
+        }
+
+        /// <summary>
+        /// Set points in such a way as to become only
+        /// part of mobject.
+        /// Inputs 0 <= a<b <= 1 determine what portion
+        /// of mobject to become.
+        /// </summary>
+        public virtual Mobject BecomePartial(Mobject mobj, int a, int b)
+        {
+            // To implement in subclass
+            return this;
+        }
+
+        public virtual Mobject PointwiseBecomePartial(Mobject mobj, int a, int b)
+        {
+            // To implement in subclass
+            return this;
+        }
+
+        /// <summary>
+        /// Edit points, colors and submobjects to be idential to another mobject
+        /// </summary>
+        public Mobject Become(Mobject mobj, bool copySubmobjs = true)
+        {
+            AlignData(mobj);
+            foreach ((Mobject submobj1, Mobject submobj2) in Family.Zip(mobj.Family, (c, m) => (c, m)))
+            {
+                submobj1.Points = submobj2.Points;
+                submobj1.InterpolateColor(submobj1, submobj2, 1);
+            }
+            return this;
         }
         #endregion
 

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using static ManimLib.Constants;
 
 namespace ManimLib.Visuals
 {
@@ -10,7 +10,7 @@ namespace ManimLib.Visuals
         private static IList<string> _drawings;
         public static IList<string> ManimDrawings {
             get {
-                if (_drawings == null && Common.ManimDirectory != "")
+                if (_drawings == null &&  != "")
                 {
                     _drawings = new List<string>();
                     string path = System.IO.Path.Combine(Common.ManimLibDirectory, @"mobject\svg\drawings.py");

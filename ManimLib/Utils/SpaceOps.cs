@@ -1,6 +1,5 @@
 ﻿using static System.Math;
 using System;
-using System.Runtime.InteropServices;
 using System.Linq;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
@@ -24,56 +23,30 @@ namespace ManimLib.Utils
             return v.L2Norm();
         }
 
-        public static Matrix<double> RotationMatrixTranspose(double angle, Vector<double> axis)
-        {
-            if (axis[X] == 0 && axis[Y] == 0)
-            {
-                // axis = [0, 0, z] case is common enough it's worth having a shortcut
-                int sign = Sign(axis[Z]);
-                double cos_a = Cos(angle);
-                double sin_a = Sin(angle) * sign;
-                return NewMatrix(new double[,]
-                {
-                    { cos_a, sin_a, 0 },
-                    { -sin_a, cos_a, 0 },
-                    { 0, 0, 1 },
-                });
-            }
-
-            //var quat = quaternion_from_angle_axis(angle, axis)
-            //var quat_inv = quaternion_conjugate(quat)
-            //return new double[,]
-            //{
-            //    quaternion_mult(quat, [0, *basis], quat_inv)[1:]
-            //    for basis in
-            //    {
-            //        { 1, 0, 0 },
-            //        { 0, 1, 0 },
-            //        { 0, 0, 1 },
-            //    }
-            //};
-
-            throw new NotImplementedException();
-        }
-
-        public static System.Numerics.Quaternion QuaternionMultiply(params System.Numerics.Quaternion[] quats)
+        public static Quaternion QuaternionMultiply(params Quaternion[] quats)
         {
             if (quats.Length <= 0)
-                return new System.Numerics.Quaternion(0, 0, 0, 1);
+                return new Quaternion(0, 0, 0, 1);
 
-            System.Numerics.Quaternion result = quats[0];
-            foreach (System.Numerics.Quaternion q in quats.RangeSubset(1, quats.Length - 1))
+            Quaternion result = quats[0];
+            foreach (Quaternion q in quats.RangeSubset(1, quats.Length - 1))
             {
                 result *= q;
             }
             return result;
         }
 
-        public static (double, Vector<double>) AngleAxisFromQuaternion(System.Numerics.Quaternion q)
+        public static Quaternion QuaternionFromAngleAxis(double angle, Vector<double> axis)
         {
-            var axis = Vector.Build.DenseOfArray(new double[] { q.X, q.Y, q.Z });
+            double s = Sin(angle / 2);
+            return new Quaternion(axis[X] * s, axis[Y] * s, axis[Z] * s, Cos(angle / 2));
+        }
+
+        public static (double, Vector<double>) AngleAxisFromQuaternion(Quaternion q)
+        {
+            var axis = Vector.Build.DenseOfArray(new double[] { q.ImagX, q.ImagY, q.ImagZ });
             var axisNorm = axis.Normalize(axis.L2Norm());
-            var angle = 2 * Acos(q.W);
+            var angle = 2 * Acos(q.Real);
             if (angle > PI)
                 angle = 2 * PI - angle;
             return (angle, axisNorm);
@@ -119,7 +92,10 @@ namespace ManimLib.Utils
 
         public static Matrix<double> RotationMatrix(double angle, Vector<double> axis)
         {
-            return RotationMatrixTranspose(angle, axis).Transpose();
+            Matrix<double> aboutZ = RotationAboutZAxis(angle);
+            Matrix<double> ZtoAxis = ZToVector(axis);
+            Matrix<double> axisToZ = ZtoAxis.Inverse();
+            return ZtoAxis * aboutZ * axisToZ;
         }
 
         public static Matrix<double> RotationAboutZAxis(double angle)

@@ -1,53 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using static System.Math;
 
 namespace ManimLib.Math
 {
-    public static class Functions
+    public static class RateFunctions
     {
-        #region Helpers
-        public static double Clip(double n, double lower, double upper)
-        {
-            if (n < lower)
-                return lower;
-            else if (n > upper)
-                return upper;
-            else
-                return n;
-        }
-        public static int Clip(int n, int lower, int upper)
-        {
-            if (n < lower)
-                return lower;
-            else if (n > upper)
-                return upper;
-            else
-                return n;
-        }
-
-        public static double Sigmoid(double x)
-        {
-            return 1.0 / (1 + Exp(-x));
-        }
-
-        // TODO: Implement the Bezier function
-
-        public static double Sum(IList<double> values, double start = 0)
-        {
-            if (values.Count < 1)
-                return start;
-
-            double total = 0;
-            foreach (double d in values)
-            {
-                total += d;
-            }
-            return total;
-        }
-        #endregion
-
         public static double Linear(double t)
         {
             return t;
@@ -61,27 +19,15 @@ namespace ManimLib.Math
                 0, 1
             );
         }
-        public static double Smooth(double t)
-        {
-            return Smooth(t, 10);
-        }
 
         public static double RushInto(double t, double inflection = 10)
         {
             return 2 * Smooth(t / 2.0, inflection);
         }
-        public static double RushInto(double t)
-        {
-            return RushInto(t, 10);
-        }
 
         public static double RushFrom(double t, double inflection = 10)
         {
             return 2 * Smooth(t / 2.0 + 0.5, inflection) - 1;
-        }
-        public static double RushFrom(double t)
-        {
-            return RushFrom(t, 10);
         }
 
         public static double SlowInto(double t)
@@ -106,10 +52,6 @@ namespace ManimLib.Math
                 new_t = 2 * (1 - t);
             return Smooth(new_t, inflection);
         }
-        public static double ThereAndBack(double t)
-        {
-            return ThereAndBack(t, 10);
-        }
 
         public static double ThereAndBackWithPause(double t, double pauseRatio = 1.0 / 3)
         {
@@ -121,12 +63,11 @@ namespace ManimLib.Math
             else
                 return Smooth(a - a * t);
         }
-        public static double ThereAndBackWithPause(double t)
-        {
-            return ThereAndBackWithPause(t, 1.0 / 3);
-        }
 
-        // TODO: Implement the running_start function
+        public static double RunningStart(double t, double pullFactor = -0.5)
+        {
+            return Utils.BezierUtil.Bezier(new List<double>() { 0, 0, pullFactor, pullFactor, 1, 1, 1 })(t);
+        }
 
         public static Func<double, double> NotQuiteThere(Func<double, double> func, double proportion = 0.7)
         {
@@ -136,10 +77,6 @@ namespace ManimLib.Math
         public static double Wiggle(double t, int numWiggles = 2)
         {
             return ThereAndBack(t) * Sin(numWiggles * PI * t);
-        }
-        public static double Wiggle(double t)
-        {
-            return Wiggle(t, 3);
         }
 
         public static Func<double, double> SquishRateFunction(Func<double, double> func, double a = 0.4, double b = 0.6)
@@ -165,10 +102,6 @@ namespace ManimLib.Math
         public static double ExponentialDecay(double t, double halfLife = 0.1)
         {
             return 1 - Exp(-t / halfLife);
-        }
-        public static double ExponentialDecay(double t)
-        {
-            return ExponentialDecay(t, 0.1);
         }
     }
 }

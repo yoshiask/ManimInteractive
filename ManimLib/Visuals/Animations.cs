@@ -21,14 +21,14 @@ namespace ManimLib.Visuals
 
             public Animation()
             {
-                RateFunction = Functions.Smooth;
+                RateFunction = RateFunctions.Smooth;
                 RunTime = 1.0;
                 LagRatio = 0;
             }
             public Animation(Mobject mobject)
             {
                 Mobject = mobject;
-                RateFunction = Functions.Smooth;
+                RateFunction = RateFunctions.Smooth;
                 RunTime = 1.0;
                 LagRatio = 0;
             }
@@ -59,7 +59,7 @@ namespace ManimLib.Visuals
 
             public void Interpolate(double alpha)
             {
-                alpha = Functions.Clip(alpha, 0, 1);
+                alpha = RateFunctions.Clip(alpha, 0, 1);
                 RateFunction(alpha);
             }
 
@@ -74,7 +74,7 @@ namespace ManimLib.Visuals
                 double fullLength = (numSubMobjects - 1) * LagRatio + 1;
                 double value = alpha * fullLength;
                 double lower = index * LagRatio;
-                return Functions.Clip(value - lower, 0, 1);
+                return RateFunctions.Clip(value - lower, 0, 1);
             }
 
             public string GetManimType()
