@@ -1,20 +1,16 @@
-﻿using ManimLib.Math;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using ManimLib.Rendering;
-using MathNet.Spatial.Euclidean;
-using System.Runtime.InteropServices;
 using MathNet.Numerics.LinearAlgebra;
 using static ManimLib.Constants;
 using static ManimLib.Common;
 using ManimLib.Utils;
-using System.Collections.ObjectModel;
 using Color = RL.Color;
 using SliceAndDice;
 
-namespace ManimLib.Visuals
+namespace ManimLib.Mobject
 {
     public class Mobject : IList<Mobject>, IManimElement
     {
@@ -63,9 +59,9 @@ namespace ManimLib.Visuals
             Points = new List<Vector<double>>();
         }
 
-        internal virtual void InitPoints()
+        public virtual Mobject InitPoints()
         {
-            return;
+            return null;
         }
 
         public void SetPoints(params Vector<double>[] points)
@@ -73,9 +69,9 @@ namespace ManimLib.Visuals
             Points = points.ToList();
         }
 
-        internal virtual void InitColors()
+        public virtual Mobject InitColors()
         {
-            return;
+            return null;
         }
 
         #region Updaters

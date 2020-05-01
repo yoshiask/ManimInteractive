@@ -60,9 +60,46 @@ namespace ManimLib.Utils
             return result;
         }
 
-        public static IEnumerable<T> ClipInPlace<T>(IList<T> array, T minVal, T maxVal) where T : IComparable
+        public static IEnumerable<T> ClipInPlace<T>(IList<T> array, T minVal = default(T), T maxVal = default(T)) where T : IComparable
         {
-            throw new NotImplementedException("Not implemented because I don't know how it works");
+            for (int i = 0; i < array.Count; i++)
+            {
+                T item = array[i];
+                if (maxVal.CompareTo(default(T)) != 0)
+                {
+                    if (item.CompareTo(maxVal) > 0)
+                        array[i] = maxVal;
+                }
+                if (minVal.CompareTo(default(T)) != 0)
+                {
+                    if (item.CompareTo(minVal) < 0)
+                        array[i] = minVal;
+                }
+            }
+            return array;
+        }
+        public static IEnumerable<RL.Color> ClipInPlace(IList<RL.Color> array, double minVal, double maxVal)
+        {
+            for (int i = 0; i < array.Count; i++)
+            {
+                RL.Color item = array[i];
+                if (maxVal != default)
+                {
+                    item = Color.ApplyFunctionToRGBA(item, d =>
+                    {
+                        return d > maxVal ? maxVal : d;
+                    });
+                }
+                if (minVal != default)
+                {
+                    item = Color.ApplyFunctionToRGBA(item, d =>
+                    {
+                        return d < minVal ? minVal : d;
+                    });
+                }
+                array[i] = item;
+            }
+            return array;
         }
 
         /// <summary>

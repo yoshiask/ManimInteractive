@@ -23,6 +23,11 @@ namespace ManimLib.Utils
             return v.L2Norm();
         }
 
+        public static Vector<double> Normalize(Vector<double> v)
+        {
+            return v.Normalize(v.L2Norm());
+        }
+
         public static Quaternion QuaternionMultiply(params Quaternion[] quats)
         {
             if (quats.Length <= 0)
