@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>8.0</LangVersion> <!-- 👈 Enable C# 8 features -->
   </PropertyGroup>
 
   <ItemGroup>

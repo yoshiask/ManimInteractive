@@ -20,14 +20,14 @@ namespace ManimLib.Mobject
 
         public int Dimension { get; set; } = 3;
         public Mobject Target { get; set; }
-        public List<Mobject> Submobjects { get; internal set; }
+        public List<Mobject> Submobjects { get; set; }
         public List<Mobject> Parents { get; internal set; }
         public List<Mobject> Family { get; internal set; }
 
         public List<Func<Mobject, double, Mobject>> Updaters { get; internal set; }
         public bool IsUpdatingSuspended { get; set; }
 
-        public List<Vector<double>> Points { get; internal set; }
+        public List<Vector<double>> Points { get; set; }
 
         public int Count => Family.Count;
 
@@ -64,9 +64,10 @@ namespace ManimLib.Mobject
             return null;
         }
 
-        public void SetPoints(params Vector<double>[] points)
+        public Mobject SetPoints(params Vector<double>[] points)
         {
             Points = points.ToList();
+            return this;
         }
 
         public virtual Mobject InitColors()
@@ -937,14 +938,14 @@ namespace ManimLib.Mobject
         {
             if (Points.Count <= 0)
                 throw new Exception("Mobject contains no points");
-            return Points.First();
+            return Points[0];
         }
 
         public Vector<double> GetEnd()
         {
             if (Points.Count <= 0)
                 throw new Exception("Mobject contains no points");
-            return Points.Last();
+            return Points[^1];
         }
 
         public (Vector<double> start, Vector<double> end) GetStartAndEnd()
@@ -953,11 +954,11 @@ namespace ManimLib.Mobject
         }
 
         /// <summary>
-        /// Don't use this, even Grant did not finish it
+        /// Do not call this function directly; call something like <see cref="Types.VMobject.PointFromProportion(double)"/>
         /// </summary>
-        public Vector<double> PointFromProportion(double alpha)
+        public virtual Vector<double> PointFromProportion(double alpha)
         {
-            throw new NotImplementedException("Not implemented in Manim");
+            throw new NotImplementedException();
         }
 
         public Group GetPieces(int nPieces)
@@ -1125,7 +1126,7 @@ namespace ManimLib.Mobject
             for (int i = 0; i < Submobjects.Count; i += n)
             {
                 groups.Concat(new Group(
-                    new ArraySlice<Mobject>(Submobjects).GetSlice($"{i}:{i + n}")[0].Arrange(v1)
+                    Submobjects.ToArray()[i..(i+n)][0].Arrange(v1)
                 ));
             }
             new Group(groups).Arrange(v2);

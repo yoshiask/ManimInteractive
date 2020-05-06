@@ -34,7 +34,7 @@ namespace ManimLib.Utils
                 return new Quaternion(0, 0, 0, 1);
 
             Quaternion result = quats[0];
-            foreach (Quaternion q in quats.RangeSubset(1, quats.Length - 1))
+            foreach (Quaternion q in quats.Slice(1, quats.Length - 1))
             {
                 result *= q;
             }
@@ -76,19 +76,21 @@ namespace ManimLib.Utils
                 new System.Numerics.Vector3((float)v[0], (float)v[1], (float)v[2]), 0) * quatInv;
             return Vector.Build.DenseOfArray(new double[] { product.X, product.Y, product.Z });
         }
-
-        public static Matrix<double> ThickDiagonal(int dimension, int thickness = 2)
-        {
-            int[,] rowIndicies = ArrayUtilities.Arange(dimension).ToList().Repeat(dimension).Reshape((dimension, dimension));
-            int[,] colIndicies = rowIndicies.Transpose();
-            var final = rowIndicies.Combine(colIndicies,
-                (r, c) =>
-                {
-                    return (Abs(r - c) < thickness) ? 1 : 0;
-                }
-            ).CastToDoubleArray();
-            return NewMatrix(final);
-        }
+        
+        // The following function is defined in manimpy, but it has literally zero
+        // references and is causing issues, so bye-bye!
+        //public static Matrix<double> ThickDiagonal(int dimension, int thickness = 2)
+        //{
+        //    int[,] rowIndicies = ArrayUtilities.Arange(dimension).ToList().Repeat(dimension).Reshape((dimension, dimension));
+        //    int[,] colIndicies = rowIndicies.Transpose();
+        //    var final = rowIndicies.Combine(colIndicies,
+        //        (r, c) =>
+        //        {
+        //            return (Abs(r - c) < thickness) ? 1 : 0;
+        //        }
+        //    ).CastToDoubleArray();
+        //    return NewMatrix(final);
+        //}
 
         public static Matrix<double> GetMatrixIdentity(int dimension)
         {

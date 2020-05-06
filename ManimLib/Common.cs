@@ -30,18 +30,191 @@ namespace ManimLib
     public static class ArrayUtilities
     {
         // create a subset from a range of indices
-        public static T[] RangeSubset<T>(this T[] array, int startIndex, int length)
-        {
-            T[] subset = new T[length];
-            Array.Copy(array, startIndex, subset, 0, length);
-            return subset;
-        }
         public static double[] RangeSubset(this Vector<double> array, int startIndex, int length)
         {
-            return array.ToArray().RangeSubset(startIndex, length);
+            return array.ToArray()[startIndex..length];
         }
 
-        // create a subset from a specific list of indices
+        #region Python-style Slicing
+        /// <summary>
+        /// Slices a given <see cref="IList{T}"/>, just like <c>array[start:end:step]</c>.
+        /// In theory, this is more efficient than <see cref="Slice{T}(IEnumerable{T}, int, int, int)"/>,
+        /// because it doesn't use any LINQ
+        /// </summary>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static List<T> Slice<T>(this IList<T> array, int start = 0, int? end = null, int step = 1)
+        {
+            var slice = new List<T>();
+            int arrayLength = array.Count;
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+
+            for (int i = start; i < end.Value; i += step)
+                slice.Add(array[i]);
+            return slice;
+        }
+
+        /// <summary>
+        /// Converts raw user input to a valid array index, to be used as an end index.
+        /// Used by <see cref="Slice{T}(IList{T}, int, int?, int)"/> to handle negative indexes.
+        /// </summary>
+        public static int WrapEndIndex(int? end, int arrayLength)
+        {
+            if (end.HasValue)
+            {
+                return end.Value < 0 ? Utils.SimpleFunctions.Mod(end.Value, arrayLength) : end.Value;
+            }
+            else
+            {
+                return arrayLength;
+            }
+        }
+        /// <summary>
+        /// Converts raw user input to a valid array index, to be used as an start index.
+        /// Used by <see cref="Slice{T}(IList{T}, int, int?, int)"/> to handle negative indexes.
+        /// </summary>
+        public static int WrapStartIndex(int start, int arrayLength)
+        {
+            return start < 0 ? Utils.SimpleFunctions.Mod(start, arrayLength) : start;
+        }
+
+        /// <summary>
+        /// Sets each element in a slice to the corresponding element in <paramref name="array"/>.
+        /// Functionally identical to <see cref="SetSlice{T}(IList{T}, IList{T}, int, int?, int)"/>,
+        /// but modifies <paramref name="array"/> instead of creating a new <see cref="List{T}"/>.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static void ChangeSlice<T>(this IList<T> array, IList<T> insert, int start = 0, int? end = null, int step = 1)
+        {
+            int arrayLength = array.Count;
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+
+            int j = 0;
+            for (int i = start; i < end; i += step)
+            {
+                array[i] = insert[j];
+                j++;
+            }
+        }
+
+        /// <summary>
+        /// Sets each element in a slice to the corresponding element in <paramref name="array"/>.
+        /// Functionally identical to <see cref="ChangeSlice{T}(IList{T}, IList{T}, int, int?, int)"/>,
+        /// but returns a new <see cref="List{T}"/> instead of modifying the existing one.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static List<T> SetSlice<T>(this IList<T> array, IList<T> insert, int start = 0, int? end = null, int step = 1)
+        {
+            var output = new List<T>(array);
+            output.ChangeSlice(insert, start, end, step);
+            return output;
+        }
+
+        /// <summary>
+        /// Sets each element in a slice of a row to the corresponding element in <paramref name="array"/>.
+        /// Equivalent to <c>array[row, start:stop:step] = insert</c>.
+        /// Functionally identical to <see cref="SetColumnSlice{T}(T[,], IList{T}, int, int, int?, int)"/>,
+        /// but modifies <paramref name="array"/> instead of creating a new <see cref="List{T}"/>.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static void ChangeRowSlice<T>(this T[,] array, IList<T> insert, int row, int start = 0, int? end = null, int step = 1)
+        {
+            int arrayLength = array.GetLength(1);
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+            row = WrapStartIndex(row, array.GetLength(0));
+
+            int i = 0;
+            for (int j = start; j < end; j += step)
+            {
+                array[row, j] = insert[i];
+                i++;
+            }
+        }
+        /// <summary>
+        /// Sets each element in a slice of a row to the corresponding element in <paramref name="array"/>.
+        /// Equivalent to <c>array[start:stop:step, col] = insert</c>.
+        /// Functionally identical to <see cref="SetRowSlice{T}(T[,], IList{T}, int, int, int?, int)"/>,
+        /// but modifies <paramref name="array"/> instead of creating a new <see cref="List{T}"/>.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static void ChangeColumnSlice<T>(this T[,] array, IList<T> insert, int col, int start = 0, int? end = null, int step = 1)
+        {
+            int arrayLength = array.GetLength(0);
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+            col = WrapStartIndex(col, array.GetLength(1));
+
+            int i = 0;
+            for (int j = start; j < end; j += step)
+            {
+                array[j, col] = insert[i];
+                i++;
+            }
+        }
+
+        /// <summary>
+        /// Sets each element in the slice of a row to the corresponding element in <paramref name="array"/>.
+        /// Functionally identical to <see cref="ChangeRowSlice{T}(T[,], IList{T}, int, int, int?, int)"/>,
+        /// but returns a new <c>T[,]</c> instead of modifying the existing one.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static T[,] SetRowSlice<T>(this T[,] array, IList<T> insert, int row, int start = 0, int? end = null, int step = 1)
+        {
+            T[,] output = new T[array.GetLength(0), array.GetLength(1)];
+            Array.Copy(array, output, array.Length);
+            output.ChangeRowSlice(insert, row, start, end, step);
+            return output;
+        }
+        /// <summary>
+        /// Sets each element in the slice of a row to the corresponding element in <paramref name="array"/>.
+        /// Functionally identical to <see cref="ChangeColumnSlice{T}(T[,], IList{T}, int, int, int?, int)"/>,
+        /// but returns a new <c>T[,]</c> instead of modifying the existing one.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static T[,] SetColumnSlice<T>(this T[,] array, IList<T> insert, int col, int start = 0, int? end = null, int step = 1)
+        {
+            T[,] output = new T[array.GetLength(0), array.GetLength(1)];
+            Array.Copy(array, output, array.Length);
+            output.ChangeColumnSlice(insert, col, start, end, step);
+            return output;
+        }
+        #endregion
+
+        /// <summary>
+        /// Create a subset from a specific list of indices
+        /// </summary>
         public static T[] Subset<T>(this T[] array, params int[] indices)
         {
             T[] subset = new T[indices.Length];
@@ -56,6 +229,14 @@ namespace ManimLib
         {
             for (int i = 0; i < length; i++)
                 yield return default(T);
+        }
+        public static T[,] Zeros<T>(int width, int height)
+        {
+            T[,] output = new T[width, height];
+            for (int x = 0; x < width; x++)
+                for (int y = 0; y < height; y++)
+                    output[x, y] = default(T);
+            return output;
         }
         public static Array Zeros(Type dataType, int dim, int length)
         {
@@ -75,9 +256,11 @@ namespace ManimLib
             return Zeros(dataType, shape);
         }
 
+        [Obsolete("Use Utils.Iterables.CreateRange()")]
         /// <summary>
         /// Generates an array of ints where the value at index i is i
-        /// (e.g. Arange(4) = [ 0, 1, 2, 3 ])
+        /// (e.g. Arange(4) = [ 0, 1, 2, 3 ]). This function is depcrecated,
+        /// please use <see cref="Utils.Iterables.CreateRange(int, int, int)"/>
         /// </summary>
         public static IEnumerable<int> Arange(int length)
         {
@@ -97,6 +280,13 @@ namespace ManimLib
                     output[i * repeat + r] = items[i];
                 }
             }
+            return output;
+        }
+        public static List<T> Repeat<T>(this T item, int repeat)
+        {
+            List<T> output = new List<T>(repeat + 1);
+            for (int i = 0; i < repeat; i++)
+                output[i] = item;
             return output;
         }
 
@@ -125,6 +315,26 @@ namespace ManimLib
                 for (int r = 0; r < items.GetLength(0); r++)
                     output[j, r] = items[r, j];
 
+            return output;
+        }
+        /// <summary>
+        /// Swaps the 'rows' and 'columns' with each each other, which reverses the dimensions
+        /// </summary>
+        public static List<Vector<double>> Transpose(this IEnumerable<Vector<double>> vectors)
+        {
+            if (vectors.First().Count != vectors.Count())
+                throw new ArgumentException("Vector dimension and length of list must be equal");
+            int size = vectors.Count();
+            List<Vector<double>> output = new List<Vector<double>>();
+            for (int i = 0; i < size; i++)
+            {
+                double[] currVector = new double[size];
+                for (int j = 0; j < size; j++)
+                {
+                    currVector[j] = vectors.ElementAt(j)[i];
+                }
+                output[i] = Vector<double>.Build.DenseOfArray(currVector);
+            }
             return output;
         }
 

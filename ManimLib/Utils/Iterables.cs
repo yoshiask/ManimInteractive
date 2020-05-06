@@ -53,6 +53,20 @@ namespace ManimLib.Utils
                     : end);
         }
 
+        public static IEnumerable<T> StretchArrayToLength<T>(IEnumerable<T> array, int length)
+        {
+            int currLength = array.Count();
+            if (currLength > length)
+                System.Diagnostics.Debug.WriteLine("Warning: Trying to stretch array to a length shorter than its own");
+            IEnumerable<int> indicies = ArrayUtilities.Arange(length).Select(
+                i => Convert.ToInt32(i / (float)length * currLength)
+            );
+            foreach (int index in indicies)
+            {
+                yield return array.ElementAt(index);
+            }
+        }
+
         public static Tuple<IEnumerable<T1>, IEnumerable<T2>> MakeEven<T1, T2>(IEnumerable<T1> iter1, IEnumerable<T2> iter2)
         {
             int length = System.Math.Max(iter1.Count(), iter2.Count());
@@ -64,6 +78,20 @@ namespace ManimLib.Utils
                 newList2[n] = iter2.ElementAt((n * iter2.Count()) / length);
             }
             return new Tuple<IEnumerable<T1>, IEnumerable<T2>>(newList1, newList2);
+        }
+
+        public static IEnumerable<Tuple<T1, T2>> MakeEvenTuples<T1, T2>(IEnumerable<T1> iter1, IEnumerable<T2> iter2)
+        {
+            int length = System.Math.Max(iter1.Count(), iter2.Count());
+            Tuple<T1, T2>[] newList = new Tuple<T1, T2>[length];
+            for (int n = 0; n < length; n++)
+            {
+                newList[n] = new Tuple<T1, T2>(
+                    iter1.ElementAt((n * iter1.Count()) / length),
+                    iter2.ElementAt((n * iter2.Count()) / length)
+                );
+            }
+            return newList;
         }
 
         public static Tuple<IEnumerable<T>, IEnumerable<T>> MakeEvenByCycling<T>(IEnumerable<T> iter1, IEnumerable<T> iter2)
@@ -82,6 +110,32 @@ namespace ManimLib.Utils
         public static T Cycle<T>(IEnumerable<T> iter, int index)
         {
             return iter.ElementAt(index % iter.Count());
+        }
+
+        /// <summary>
+        /// Creates a sequence of numbers, inclusive with <c>end</c>
+        /// </summary>
+        public static IEnumerable<int> CreateRange(int start, int end, int step)
+        {
+            for (int i = start; i < end; i += step)
+                yield return i;
+        }
+
+        public static List<T> Interleave<T>(IList<T> first, IList<T> second)
+        {
+            // I'll assume both have the same length and are
+            // not null, simply add more checks/tweaks if needed
+
+            int length = first.Count;
+            List<T> result = new List<T>(length * 2);
+
+            for (int i = 0; i < length; i++)
+            {
+                result.Add(first[i]);
+                result.Add(second[i]);
+            }
+
+            return result;
         }
     }
 }

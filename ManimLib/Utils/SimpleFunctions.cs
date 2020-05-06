@@ -114,5 +114,16 @@ namespace ManimLib.Utils
         {
             throw new NotImplementedException();
         }
+
+        // The following functions are not part of manimpy
+
+        public static int Mod(int a, int b)
+        {
+            return (int)Mod((double)a, b);
+        }
+        public static double Mod(double a, double b)
+        {
+            return a - b * Floor(a / b);
+        }
     }
 }

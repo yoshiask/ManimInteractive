@@ -50,7 +50,7 @@ namespace ManimLib.Utils
             // TODO: Check the parameter types of this function.
             // Should points be a list of Vectors or doubles?
             if (a == 1)
-                return Enumerable.Repeat(points.Last(), points.Count).ToList();
+                return Enumerable.Repeat(points[^1], points.Count).ToList();
             List<double> aTo1 = new List<double>();
             for (int i = 0; i < points.Count; i++)
             {
@@ -127,12 +127,65 @@ namespace ManimLib.Utils
             );
         }
 
-        public static void GetSmoothHandlePoints(List<double> points)
+        // Figuring out which bezier curves most smoothly connect a sequence of points
+
+        public static List<Vector<double>> GetSmoothHandlePoints(List<Vector<double>> points)
         {
-            throw new NotImplementedException();
             // It looks like this function uses matrices to calculate the first
             // and second derivatives, which it then uses to find the tangent
-            // and handle points;
+            // and handle points.
+
+            int numHandles = points.Count - 1;
+            int dim = points[0].Count;
+            if (numHandles < 1)
+                return new List<Vector<double>>()
+                {
+                    SpaceOps.GetZeroVector(dim), SpaceOps.GetZeroVector(dim)
+                };
+            // Must solve 2*numHandles equations to get the handles.
+            // l and u are the number of lower and upper diagonal rows
+            // in the matrix to solve.
+            int l = 2;
+            int u = 1;
+            // diag is a representation of the matrix in diagonal form
+            // See https://www.particleincell.com/2012/bezier-splines/
+            // for how to arrive at these equations
+            double[,] diagBase = new double[l + u + 1, 2 * numHandles];
+            diagBase.ChangeRowSlice(new double[] { -1 }, 0, start: 0, step: 2);
+            diagBase.ChangeRowSlice(new double[] { 1 }, 0, start: 2, step: 2);
+            diagBase.ChangeRowSlice(new double[] { 2 }, 1, start: 0, step: 2);
+            diagBase.ChangeRowSlice(new double[] { 1 }, 1, start: 1, step: 2);
+            diagBase.ChangeRowSlice(new double[] { -2 }, 2, start: 1, end: -2, step: 2);
+            diagBase.ChangeRowSlice(new double[] { -2 }, 3, start: 0, end: -3, step: 2);
+            // Last
+            diagBase[2, -2] = -1;
+            diagBase[1, -1] = 2;
+            var diag = Matrix<double>.Build.DenseOfArray(diagBase);
+
+            // This is the b as in Ax = b, where we are solving for x,
+            // and A is represented using diag.  However, think of entries
+            // to x and b as being points in space, not numbers
+            double[,] bBase = new double[2 * numHandles, dim];
+            var pointsx2 = points.Skip(1).Select(v => v * 2).ToList();
+            for (int d = 0; d < dim; d++)
+            {
+                // TODO: Test equivalency with b[1::2] = 2 * points[1:]
+                bBase.ChangeRowSlice(pointsx2[d], row: d,
+                    start: 1, step: 2);
+            }
+            bBase.ChangeRowSlice(points[0], 0); // b[0] = points[0]
+            bBase.ChangeRowSlice(points[^1], -1); // b[-1] = points[-1]
+            var b = Matrix<double>.Build.DenseOfArray(bBase);
+
+            bool useClosedSolveFunction = IsClosed(points);
+            if (useClosedSolveFunction)
+            {
+                // Get equations to relate first and last points
+
+                // Here's where things go really bonkers, so just throw
+                // a NotImplementedException until I figure it out;
+                throw new NotImplementedException("yoshiask doesn't know how to do matrix multiplication");
+            }
         }
 
         /// <summary>
@@ -141,8 +194,8 @@ namespace ManimLib.Utils
         /// </summary>
         public static bool IsClosed(List<Vector<double>> points, double tolerance = 1E-5)
         {
-            Vector<double> pointA = points.First();
-            Vector<double> pointB = points.Last();
+            Vector<double> pointA = points[0];
+            Vector<double> pointB = points[^1];
             for (int k = 0; k < pointA.Count; k++)
             {
                 if (Abs(pointA[k] - pointB[k]) > tolerance)
