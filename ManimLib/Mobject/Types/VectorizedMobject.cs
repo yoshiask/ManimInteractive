@@ -32,8 +32,14 @@ namespace ManimLib.Mobject.Types
         public VMobject ZIndexGroup { get; set; }
 
         // TODO: This sucks. Find a better way to do this.
+        /// <summary>
+        /// This is mostly used for colors, which are of type <see cref="List<double[]>"/>
+        /// </summary>
         public Dictionary<string, object> Attributes { get; set; } = new Dictionary<string, object>();
         #endregion
+
+        public VMobject(string name = null, Color color = default, int dim = 3, Mobject target = null)
+            : base(name, color, dim, target) { }
 
         #region Colors
         public override Mobject InitColors()
@@ -61,7 +67,8 @@ namespace ManimLib.Mobject.Types
         public List<double[]> GenerateRGBAsArray(List<Color> colors, List<double> opacities)
         {
             (IEnumerable<Color> colorList, IEnumerable<double> opacityList) = Utils.Iterables.MakeEven(colors, opacities);
-            IEnumerable<double[]> rgbas = colorList.Zip(opacityList, (c, o) => {
+            IEnumerable<double[]> rgbas = colorList.Zip(opacityList, (c, o) =>
+            {
                 c.A *= (byte)o;
                 return Utils.Color.ColorToRgba(c);
             });
@@ -81,7 +88,8 @@ namespace ManimLib.Mobject.Types
         public List<double[]> GenerateRGBAsArray(Color[] colors, double[] opacities)
         {
             (IEnumerable<Color> colorList, IEnumerable<double> opacityList) = Utils.Iterables.MakeEven(colors, opacities);
-            IEnumerable<double[]> rgbas = colorList.Zip(opacityList, (c, o) => {
+            IEnumerable<double[]> rgbas = colorList.Zip(opacityList, (c, o) =>
+            {
                 c.A *= (byte)o;
                 return Utils.Color.ColorToRgba(c);
             });
@@ -129,7 +137,7 @@ namespace ManimLib.Mobject.Types
         {
             // This feels a bit hacky. Find a better way to do this
             List<double[]> rgbas;
-            if      (color == null && opacity == null)
+            if (color == null && opacity == null)
                 rgbas = GenerateRGBAsArray(COLORS[Colors.BLACK], 0);
             else if (color == null && opacity != null)
                 rgbas = GenerateRGBAsArray(COLORS[Colors.BLACK], opacity[0]);
@@ -299,7 +307,7 @@ namespace ManimLib.Mobject.Types
             double factor = 1.0 - darkness;
             SetFill(
                 opacity: new double[] { factor * GetFillOpacity() },
-                family: false    
+                family: false
             );
             SetStroke(
                 opacity: factor * GetStrokeOpacity(),
@@ -307,7 +315,7 @@ namespace ManimLib.Mobject.Types
             );
             SetBackgroundStroke(
                 opacity: factor * GetStrokeOpacity(true),
-                family: false    
+                family: false
             );
             base.Fade(darkness, family);
             return this;
@@ -365,7 +373,7 @@ namespace ManimLib.Mobject.Types
         {
             return GetStrokeColors(background)[0];
         }
-        
+
         public double GetStrokeWidth(bool background = false)
         {
             if (background)
@@ -429,7 +437,7 @@ namespace ManimLib.Mobject.Types
             }
             return this;
         }
-        
+
         public (Vector<double> Start, Vector<double> End) GetGradientStartAndEndPoints()
         {
             if (ShadeIn3D)
@@ -478,7 +486,7 @@ namespace ManimLib.Mobject.Types
         #region Points
         public new VMobject SetPoints(params Vector<double>[] points)
         {
-            Points = points.ToList();
+            Points = points?.ToList();
             return this;
         }
 
@@ -658,13 +666,13 @@ namespace ManimLib.Mobject.Types
                     // here because it's a list of vectors
                     var anchors = subpath.Where((x, i) => i % NPointsPerCubicCurve == 0).ToList()
                         .Concat(new List<Vector<double>>() { subpath.Last(), null });
-                    List<Vector<double>> h1, h2; 
+                    List<Vector<double>> h1, h2;
                     switch (mode)
                     {
                         case AnchorMode.Jagged:
                             var smoothHandles = Utils.BezierUtil.GetSmoothHandlePoints(anchors.ToList());
-                            h1 = new List<Vector<double>>() { smoothHandles[0] };
-                            h2 = new List<Vector<double>>() { smoothHandles[1] };
+                            h1 = smoothHandles.Item1;
+                            h2 = smoothHandles.Item2;
                             break;
 
                         case AnchorMode.Smooth:
@@ -869,10 +877,218 @@ namespace ManimLib.Mobject.Types
         {
             if (nSamplePoints < 0)
                 nSamplePoints = 4 * GetNumCurves() + 1;
-            var points = Utils.Iterables.LinSpace(0, 1, nSamplePoints).Select(a => PointFromProportion(a)).ToArray();
+            var points = Utils.Iterables.LinSpace(0, 1, nSamplePoints)
+                .Select(a => PointFromProportion(a)).ToArray();
             var diffs = points.Skip(1).Zip(points.Slice(end: -1), (p1, p2) => p1 - p2);
             var norms = diffs.Select(v => v.L2Norm());
             return norms.Sum();
+        }
+        #endregion
+
+        #region Alignment
+        public VMobject AlignPoints(VMobject vmobj)
+        {
+            AlignRgbas(vmobj);
+            if (Points.Count == vmobj.Points.Count)
+                // For some reason, manimpy does "return", without returning itself
+                return this;
+            foreach (VMobject submobj in Submobjects.Concat(vmobj.Submobjects))
+            {
+                // If there are no points, add one to wherever the "center" is
+                if (submobj.Points.Count == 0)
+                    submobj.StartNewPath(submobj.GetCenter());
+                // If there's only one point, turn it into a null curve
+                if (submobj.HasNewPathStarted())
+                    submobj.AddLineTo(submobj.Points[^1]);
+            }
+            // Figure out what the subpaths are, and align
+            List<List<Vector<double>>> subpaths1 = GetSubpaths().ToList();
+            List<List<Vector<double>>> subpaths2 = vmobj.GetSubpaths().ToList();
+            int nSubpaths = System.Math.Max(subpaths1.Count(), subpaths2.Count());
+            // Start building new ones
+            List<Vector<double>> newPath1 = new List<Vector<double>>();
+            List<Vector<double>> newPath2 = new List<Vector<double>>();
+
+            List<Vector<double>> GetNthSubpath(List<List<Vector<double>>> pathList, int n)
+            {
+                if (n >= pathList.Count())
+                    return pathList[^1][^1].Repeat(n);
+                return pathList[n];
+            }
+
+            for (int n = 0; n < nSubpaths; n++)
+            {
+                List<Vector<double>> sp1 = GetNthSubpath(subpaths1, n);
+                List<Vector<double>> sp2 = GetNthSubpath(subpaths2, n);
+                int diff1 = System.Math.Max(0, (sp2.Count - sp1.Count) / NPointsPerCubicCurve);
+                int diff2 = System.Math.Max(0, (sp1.Count - sp2.Count) / NPointsPerCubicCurve);
+                sp1 = InsertNCurvesToPointList(diff1, sp1);
+                sp2 = InsertNCurvesToPointList(diff2, sp2);
+                newPath1.AddRange(sp1);
+                newPath2.AddRange(sp2);
+            }
+            SetPoints(newPath1);
+            vmobj.SetPoints(newPath2);
+            return this;
+        }
+
+        public VMobject InsertNCurves(int n)
+        {
+            Vector<double> newPathPoint = null;
+            if (HasNewPathStarted())
+                newPathPoint = Points[^1];
+
+            SetPoints(InsertNCurvesToPointList(n, Points));
+
+            if (newPathPoint != null)
+                Points.Add(newPathPoint);
+            return this;
+        }
+
+        public List<Vector<double>> InsertNCurvesToPointList(int n, List<Vector<double>> points)
+        {
+            if (points.Count == 1)
+                return points[0].Repeat(NPointsPerCubicCurve * n);
+            var bezierQuads = GetCubicBezierTuplesFromPoints(points).ToList();
+            int currNum = bezierQuads.Count;
+            int targetNum = currNum + n;
+            // This is an array with values ranging from 0
+            // up to currNum, with repeats such that
+            // it's total length is targetNum. For example,
+            // with currNum = 10, targetNum = 15, this would
+            // be [0, 0, 1, 2, 2, 3, 4, 4, 5, 6, 6, 7, 8, 8, 9]
+            IEnumerable<int> repeatIndicies = Utils.Iterables.CreateRange(targetNum)
+                .Select(a => a * currNum / NPointsPerCubicCurve);
+
+            // If the nth term of this list is k, it means
+            // that the nth curve of our path should be split
+            // into k pieces. In the above example, this would
+            // be [2, 1, 2, 1, 2, 1, 2, 1, 2, 1]
+            List<int> splitFactors = new List<int>();
+            for (int i = 0; i < currNum; i++)
+                splitFactors.Add(repeatIndicies.Sum(d => (d == i) ? 1 : 0));
+            List<Vector<double>> newPoints = new List<Vector<double>>();
+            foreach ((List<Vector<double>> quads, int sf) in bezierQuads.Zip(splitFactors, (q, s) => (q, s)))
+            {
+                // What was once a single cubic curve defined
+                // by "quad" will now be broken into sf
+                // smaller cubic curves
+                // TODO: Are these actually ints, or should they be doubles?
+                int[] alphas = Utils.Iterables.LinSpace(0, 1, sf + 1).ToArray();
+                foreach ((int a1, int a2) in alphas.Zip(alphas, (b, c) => (b, c)))
+                {
+                    newPoints.AddRange(Utils.BezierUtil.PartialBezierPoints(quads, a1, a2));
+                }
+            }
+            return newPoints;
+        }
+
+        public VMobject AlignRgbas(VMobject vmobj)
+        {
+            string[] attrs = new string[] { "fill_rgbas", "stroke_rgbas", "background_stroke_rgbas" };
+            foreach (string attr in attrs)
+            {
+                var a1 = Attributes[attr] as List<double[]>;
+                var a2 = vmobj.Attributes[attr] as List<double[]>;
+                if (a1.Count > a2.Count)
+                {
+                    List<double[]> newA2 = Utils.Iterables.StretchArrayToLength(a2, a1.Count).ToList();
+                    vmobj.Attributes[attr] = newA2;
+                }
+                else if (a2.Count > a1.Count)
+                {
+                    List<double[]> newA1 = Utils.Iterables.StretchArrayToLength(a1, a2.Count).ToList();
+                    vmobj.Attributes[attr] = newA1;
+                }
+            }
+            return this;
+        }
+
+        public new VectorizedPoint GetPointMobject(Vector<double> center = null)
+        {
+            if (center == null)
+                center = GetCenter();
+            VectorizedPoint point = new VectorizedPoint(center);
+            point.MatchStyle(this);
+            return point;
+        }
+
+        public void InterpolateColor(VMobject mobj1, VMobject mobj2, double alpha)
+        {
+            string[] attrs = new string[]
+            {
+                "fill_rgbas",
+                "stroke_rgbas",
+                "background_stroke_rgbas",
+                "stroke_width",
+                "background_stroke_width",
+                "sheen_direction",
+                "sheen_factor"
+            };
+            foreach (string attr in attrs)
+            {
+                Attributes[attr] = Utils.BezierUtil.Interpolate(
+                    mobj1.Attributes[attr] as IEnumerable<double>,
+                    mobj1.Attributes[attr] as IEnumerable<double>,
+                    alpha
+                );
+                if (alpha == 1.0)
+                    Attributes[attr] = mobj2.Attributes[attr];
+            }
+        }
+
+        public VMobject PointwiseBecomePartial(VMobject vmobj, int a, int b)
+        {
+            // Partial curve includes three portions:
+            // - A middle section, which matches the curve exactly
+            // - A start, which is some ending portion of an inner cubic
+            // - An end, which is the starting portion of a later inner cubic
+            if (a <= 0 && b >= 1)
+            {
+                SetPoints(vmobj.Points);
+                return this;
+            }
+            var bezierQuads = vmobj.GetCubicBezierTuples();
+            int numCubics = bezierQuads.Count();
+            (int lowerIndex, double lowerResidue) = Utils.BezierUtil.InterpolateInteger(0, numCubics, a);
+            (int upperIndex, double upperResidue) = Utils.BezierUtil.InterpolateInteger(0, numCubics, b);
+
+            Points.Clear();
+            if (numCubics == 0)
+                return this;
+            if (lowerIndex == upperIndex)
+            {
+                AppendPoints(Utils.BezierUtil.PartialBezierPoints(
+                    bezierQuads.ElementAt(lowerIndex),
+                    lowerResidue, upperResidue)
+                );
+            }
+            else
+            {
+                AppendPoints(Utils.BezierUtil.PartialBezierPoints(
+                    bezierQuads.ElementAt(lowerIndex),
+                    lowerResidue, 1)
+                );
+                // Equivalent to "for quad in bezier_quads[lower_index + 1:upper_index]: append_points(quad)"
+                foreach (var quad in bezierQuads.Skip(lowerIndex + 1).Take(upperIndex - lowerIndex + 1))
+                    AppendPoints(quad);
+                AppendPoints(Utils.BezierUtil.PartialBezierPoints(
+                    bezierQuads.ElementAt(upperIndex),
+                    0, upperResidue)
+                );
+            }
+            return this;
+        }
+
+        public VMobject GetSubcurve(double a, double b)
+        {
+            // This function is fishy...
+            // TODO: Double check that Mobject can be cast to VMobject,
+            // and that PointwiseBecomePartial is supposed to take ints and
+            // not doubles.
+            var vmobj = (VMobject)Copy();
+            vmobj.PointwiseBecomePartial(this, (int)a, (int)b);
+            return vmobj;
         }
         #endregion
 
@@ -945,4 +1161,114 @@ namespace ManimLib.Mobject.Types
             Smooth
         }
     }
+
+    // TODO: The following classes should really be in their own file
+
+    public class VGroup : VMobject
+    {
+        public VGroup(params VMobject[] vmobjs) : base()
+        {
+            Add(vmobjs);
+        }
+
+        public VGroup(string name = null, Color color = default, int dim = 3, Mobject target = null, params VMobject[] vmobjs)
+            : base(name, color, dim, target)
+        {
+            Add(vmobjs);
+        }
+
+    }
+
+    public class VectorizedPoint : VMobject
+    {
+        #region Properties
+        //public Color Color { get; set; }
+        public double FillOpacity { get; set; }
+        public double StrokeWidth { get; set; }
+        public double ArtificialWidth { get; set; }
+        public double ArtificialHeight { get; set; }
+        #endregion
+
+        public VectorizedPoint(Vector<double> location = null) : base()
+        {
+            SetPoints(location);
+        }
+        public VectorizedPoint(string name = null, Color color = default, int dim = 3, Mobject target = null, Vector<double> location = null)
+            : base(name, color, dim, target)
+        {
+            SetPoints(location);
+        }
+
+        public new double GetWidth()
+        {
+            return ArtificialWidth;
+        }
+
+        public new double GetHeight()
+        {
+            return ArtificialHeight;
+        }
+
+        public Vector<double> GetLocation()
+        {
+            return Points[0];
+        }
+
+        public void SetLocation(Vector<double> location)
+        {
+            SetPoints(location);
+        }
+    }
+
+    public class CurvesAsSubmobjects : VGroup
+    {
+        public CurvesAsSubmobjects(VMobject vmobj, string name = null, Color color = default, int dim = 3, Mobject target = null)
+            : base(name, color, dim, target)
+        {
+            IEnumerable<List<Vector<double>>> tuples = vmobj.GetCubicBezierTuples();
+            foreach (List<Vector<double>> tup in tuples)
+            {
+                var part = new VMobject();
+                part.SetPoints(tup);
+                part.MatchStyle(vmobj);
+                Add(part);
+            }
+        }
+    }
+
+    public class DashedVMobject : VMobject
+    {
+        public int NumDashes { get; set; } = 15;
+        public double PositiveSpaceRatio { get; set; } = 0.5;
+        //public Color Color { get; set; } = COLORS[Colors.WHITE];
+
+        public DashedVMobject(VMobject vmobj, int numDashes = 15, double positiveSpaceRatio = 0.5,
+            string name = null, Color color = default, int dim = 3, Mobject target = null)
+            : base(name, color, dim, target)
+        {
+            NumDashes = numDashes;
+            PositiveSpaceRatio = positiveSpaceRatio;
+            if (NumDashes > 0)
+            {
+                // End points of the unit interval for division
+                IEnumerable<double> alphas = Utils.Iterables.LinSpace(0.0, 1.0, NumDashes + 1);
+
+                // This determines the length of each "dash"
+                double fullDAlpha = 1.0 / NumDashes;
+                double partialDAlpha = fullDAlpha * PositiveSpaceRatio;
+
+                // Rescale so that the last point of vmobject will
+                // be the end of the last dash
+                alphas = alphas.Select(a => a / (1 - fullDAlpha + partialDAlpha));
+
+                foreach (double alpha in alphas.ToArray().Slice(end: -1))
+                {
+                    Add(vmobj.GetSubcurve(alpha, alpha + partialDAlpha));
+                }
+            }
+            // Family is already taken care of by GetSubcurve implementation
+            MatchStyle(vmobj, false);
+        }
+    }
+
 }

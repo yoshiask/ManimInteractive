@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using MathNet.Numerics.Integration;
 using static System.Math;
+using static ManimLib.Utils.SimpleFunctions;
 
-namespace ManimLib.Math
+namespace ManimLib.Utils
 {
     public static class RateFunctions
     {
@@ -11,7 +13,11 @@ namespace ManimLib.Math
             return t;
         }
 
-        public static double Smooth(double t, double inflection = 10)
+        public static double Smooth(double t)
+        {
+            return Smooth(t, 10);
+        }
+        public static double Smooth(double t, double inflection)
         {
             double error = Sigmoid(-inflection / 2);
             return Clip(
@@ -20,12 +26,20 @@ namespace ManimLib.Math
             );
         }
 
-        public static double RushInto(double t, double inflection = 10)
+        public static double RushInto(double t)
+        {
+            return RushInto(t, 10);
+        }
+        public static double RushInto(double t, double inflection)
         {
             return 2 * Smooth(t / 2.0, inflection);
         }
 
-        public static double RushFrom(double t, double inflection = 10)
+        public static double RushFrom(double t)
+        {
+            return RushFrom(t, 10);
+        }
+        public static double RushFrom(double t, double inflection)
         {
             return 2 * Smooth(t / 2.0 + 0.5, inflection) - 1;
         }
@@ -43,7 +57,11 @@ namespace ManimLib.Math
                 return 0.5 * (1 + Smooth(2 * t - 1));
         }
 
-        public static double ThereAndBack(double t, double inflection = 10)
+        public static double ThereAndBack(double t)
+        {
+            return ThereAndBack(t, 10);
+        }
+        public static double ThereAndBack(double t, double inflection)
         {
             double new_t;
             if (t < 0.5)
@@ -53,7 +71,11 @@ namespace ManimLib.Math
             return Smooth(new_t, inflection);
         }
 
-        public static double ThereAndBackWithPause(double t, double pauseRatio = 1.0 / 3)
+        public static double ThereAndBackWithPause(double t)
+        {
+            return ThereAndBackWithPause(t, 1.0 / 3);
+        }
+        public static double ThereAndBackWithPause(double t, double pauseRatio)
         {
             double a = 1.0 / pauseRatio;
             if (0.5 - (pauseRatio / 2) > t)
@@ -64,7 +86,11 @@ namespace ManimLib.Math
                 return Smooth(a - a * t);
         }
 
-        public static double RunningStart(double t, double pullFactor = -0.5)
+        public static double RunningStart(double t)
+        {
+            return RunningStart(t, -0.5);
+        }
+        public static double RunningStart(double t, double pullFactor)
         {
             return Utils.BezierUtil.Bezier(new List<double>() { 0, 0, pullFactor, pullFactor, 1, 1, 1 })(t);
         }
@@ -99,7 +125,11 @@ namespace ManimLib.Math
             return SquishRateFunction((double n) => n, 0, 0.8);
         }
 
-        public static double ExponentialDecay(double t, double halfLife = 0.1)
+        public static double ExponentialDecay(double t)
+        {
+            return ExponentialDecay(t, 0.1);
+        }
+        public static double ExponentialDecay(double t, double halfLife)
         {
             return 1 - Exp(-t / halfLife);
         }

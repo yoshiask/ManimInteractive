@@ -113,13 +113,22 @@ namespace ManimLib.Utils
         }
 
         /// <summary>
-        /// Creates a sequence of numbers, inclusive with <c>end</c>
+        /// Creates a sequence of numbers, exclusive with <c>end</c>
         /// </summary>
         public static IEnumerable<int> CreateRange(int start, int end, int step)
         {
             for (int i = start; i < end; i += step)
                 yield return i;
         }
+        /// <summary>
+        /// Creates a sequence of numbers starting at zero, exclusive with <c>end</c>
+        /// </summary>
+        public static IEnumerable<int> CreateRange(int end)
+        {
+            for (int i = 0; i < end; i++)
+                yield return i;
+        }
+
 
         public static List<T> Interleave<T>(IList<T> first, IList<T> second)
         {

@@ -8,7 +8,6 @@ using static ManimLib.Constants;
 using static ManimLib.Common;
 using ManimLib.Utils;
 using Color = RL.Color;
-using SliceAndDice;
 
 namespace ManimLib.Mobject
 {
@@ -1275,7 +1274,7 @@ namespace ManimLib.Mobject
             }
         }
 
-        public Vector<double> GetPointMobject(Vector<double> center = null)
+        public virtual Mobject GetPointMobject(Vector<double> center = null)
         {
             throw new NotImplementedException($"get_point_mobject not implemented for {GetType().Name}");
         }

@@ -76,7 +76,7 @@ namespace ManimLib.Utils
                 new System.Numerics.Vector3((float)v[0], (float)v[1], (float)v[2]), 0) * quatInv;
             return Vector.Build.DenseOfArray(new double[] { product.X, product.Y, product.Z });
         }
-        
+
         // The following function is defined in manimpy, but it has literally zero
         // references and is causing issues, so bye-bye!
         //public static Matrix<double> ThickDiagonal(int dimension, int thickness = 2)
@@ -92,10 +92,10 @@ namespace ManimLib.Utils
         //    return NewMatrix(final);
         //}
 
-        public static Matrix<double> GetMatrixIdentity(int dimension)
-        {
-            return ThickDiagonal(dimension, 1);
-        }
+        //public static Matrix<double> GetMatrixIdentity(int dimension)
+        //{
+        //    return ThickDiagonal(dimension, 1);
+        //}
 
         public static Matrix<double> RotationMatrix(double angle, Vector<double> axis)
         {
@@ -118,7 +118,7 @@ namespace ManimLib.Utils
         {
             double norm = initV.L2Norm();
             if (norm == 0)
-                return GetMatrixIdentity(3);
+                return Matrix<double>.Build.DiagonalIdentity(3);
             Vector<double> v = initV / norm;
             double phi = Acos(v[2]);
             double theta;
@@ -158,7 +158,7 @@ namespace ManimLib.Utils
 
         public static Vector<double> ProjectAlongVector(Vector<double> point, Vector<double> vector)
         {
-            Matrix<double> matrix = GetMatrixIdentity(3) - vector.OuterProduct(vector);
+            Matrix<double> matrix = Matrix<double>.Build.DiagonalIdentity(3) - vector.OuterProduct(vector);
             return point * matrix;
         }
 

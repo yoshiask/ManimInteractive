@@ -39,7 +39,7 @@ namespace ManimLib
         /// <summary>
         /// Slices a given <see cref="IList{T}"/>, just like <c>array[start:end:step]</c>.
         /// In theory, this is more efficient than <see cref="Slice{T}(IEnumerable{T}, int, int, int)"/>,
-        /// because it doesn't use any LINQ
+        /// because it doesn't use any LINQ. Note that this copies the array.
         /// </summary>
         /// <param name="start">Inclusive start index</param>
         /// <param name="end">Exclusive end index</param>
@@ -56,29 +56,43 @@ namespace ManimLib
                 slice.Add(array[i]);
             return slice;
         }
-
         /// <summary>
-        /// Converts raw user input to a valid array index, to be used as an end index.
-        /// Used by <see cref="Slice{T}(IList{T}, int, int?, int)"/> to handle negative indexes.
+        /// Slices a given <see cref="IList{T}"/>, just like <c>array[row, start:stop:step]</c>.
+        /// Note that this copies the array.
         /// </summary>
-        public static int WrapEndIndex(int? end, int arrayLength)
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static List<T> RowSlice<T>(this T[,] array, int row, int start = 0, int? end = null, int step = 1)
         {
-            if (end.HasValue)
-            {
-                return end.Value < 0 ? Utils.SimpleFunctions.Mod(end.Value, arrayLength) : end.Value;
-            }
-            else
-            {
-                return arrayLength;
-            }
+            int arrayLength = array.Length;
+            List<T> slice = new List<T>(array.GetLength(0));
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+
+            for (int i = start; i < end.Value; i += step)
+                slice.Add(array[row, i]);
+            return slice;
         }
         /// <summary>
-        /// Converts raw user input to a valid array index, to be used as an start index.
-        /// Used by <see cref="Slice{T}(IList{T}, int, int?, int)"/> to handle negative indexes.
+        /// Slices a given <see cref="IList{T}"/>, just like <c>array[start:stop:step, col]</c>.
+        /// Note that this copies the array.
         /// </summary>
-        public static int WrapStartIndex(int start, int arrayLength)
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static List<T> ColumnSlice<T>(this T[,] array, int col, int start = 0, int? end = null, int step = 1)
         {
-            return start < 0 ? Utils.SimpleFunctions.Mod(start, arrayLength) : start;
+            int arrayLength = array.Length;
+            List<T> slice = new List<T>(array.GetLength(1));
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+
+            for (int i = start; i < end.Value; i += step)
+                slice.Add(array[i, col]);
+            return slice;
         }
 
         /// <summary>
@@ -105,24 +119,6 @@ namespace ManimLib
                 j++;
             }
         }
-
-        /// <summary>
-        /// Sets each element in a slice to the corresponding element in <paramref name="array"/>.
-        /// Functionally identical to <see cref="ChangeSlice{T}(IList{T}, IList{T}, int, int?, int)"/>,
-        /// but returns a new <see cref="List{T}"/> instead of modifying the existing one.
-        /// </summary>
-        /// <param name="array">The array to set a slice from</param>
-        /// <param name="insert">The array to pull set elements from.</param>
-        /// <param name="start">Inclusive start index</param>
-        /// <param name="end">Exclusive end index</param>
-        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
-        public static List<T> SetSlice<T>(this IList<T> array, IList<T> insert, int start = 0, int? end = null, int step = 1)
-        {
-            var output = new List<T>(array);
-            output.ChangeSlice(insert, start, end, step);
-            return output;
-        }
-
         /// <summary>
         /// Sets each element in a slice of a row to the corresponding element in <paramref name="array"/>.
         /// Equivalent to <c>array[row, start:stop:step] = insert</c>.
@@ -177,6 +173,22 @@ namespace ManimLib
         }
 
         /// <summary>
+        /// Sets each element in a slice to the corresponding element in <paramref name="array"/>.
+        /// Functionally identical to <see cref="ChangeSlice{T}(IList{T}, IList{T}, int, int?, int)"/>,
+        /// but returns a new <see cref="List{T}"/> instead of modifying the existing one.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static List<T> SetSlice<T>(this IList<T> array, IList<T> insert, int start = 0, int? end = null, int step = 1)
+        {
+            var output = new List<T>(array);
+            output.ChangeSlice(insert, start, end, step);
+            return output;
+        }
+        /// <summary>
         /// Sets each element in the slice of a row to the corresponding element in <paramref name="array"/>.
         /// Functionally identical to <see cref="ChangeRowSlice{T}(T[,], IList{T}, int, int, int?, int)"/>,
         /// but returns a new <c>T[,]</c> instead of modifying the existing one.
@@ -209,6 +221,30 @@ namespace ManimLib
             Array.Copy(array, output, array.Length);
             output.ChangeColumnSlice(insert, col, start, end, step);
             return output;
+        }
+
+        /// <summary>
+        /// Converts raw user input to a valid array index, to be used as an end index.
+        /// Used by <see cref="Slice{T}(IList{T}, int, int?, int)"/> to handle negative indexes.
+        /// </summary>
+        public static int WrapEndIndex(int? end, int arrayLength)
+        {
+            if (end.HasValue)
+            {
+                return end.Value < 0 ? Utils.SimpleFunctions.Mod(end.Value, arrayLength) : end.Value;
+            }
+            else
+            {
+                return arrayLength;
+            }
+        }
+        /// <summary>
+        /// Converts raw user input to a valid array index, to be used as an start index.
+        /// Used by <see cref="Slice{T}(IList{T}, int, int?, int)"/> to handle negative indexes.
+        /// </summary>
+        public static int WrapStartIndex(int start, int arrayLength)
+        {
+            return start < 0 ? Utils.SimpleFunctions.Mod(start, arrayLength) : start;
         }
         #endregion
 
@@ -268,7 +304,8 @@ namespace ManimLib
         }
 
         /// <summary>
-        /// Repeats every item the specified number of times
+        /// Repeats every item the specified number of times. Pass in repeat: 0
+        /// to return a list with only one element
         /// </summary>
         public static T[] Repeat<T>(this IList<T> items, int repeat)
         {
@@ -284,8 +321,9 @@ namespace ManimLib
         }
         public static List<T> Repeat<T>(this T item, int repeat)
         {
-            List<T> output = new List<T>(repeat + 1);
-            for (int i = 0; i < repeat; i++)
+            int length = repeat + 1;
+            List<T> output = new List<T>(length);
+            for (int i = 0; i < length; i++)
                 output[i] = item;
             return output;
         }
@@ -565,6 +603,20 @@ namespace ManimLib
             {
                 throw new InvalidOperationException("The given jagged array is not rectangular.");
             }
+        }
+
+        public static T[][] ToJagged<T>(this T[,] source)
+        {
+            T[][] result = new T[source.GetLength(0)][];
+            for (int i = 0; i < source.GetLength(0); i++)
+            {
+                result[i] = new T[source.GetLength(1)];
+                for (int j = 0; j < source.GetLength(1); j++)
+                {
+                    result[i][j] = source[i, j];
+                }
+            }
+            return result;
         }
 
         /// <summary>
