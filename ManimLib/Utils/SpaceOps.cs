@@ -347,5 +347,10 @@ namespace ManimLib.Utils
         {
             return SubdivideLine(points.ToList(), numOfSubdivisions);
         }
+
+        public static Vector<double> ToVector(this System.Drawing.PointF pf)
+        {
+            return Vector<double>.Build.DenseOfArray(new double[] { pf.X, pf.Y });
+        }
     }
 }

@@ -1,10 +1,13 @@
 using ManimLibTest.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Svg;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using MathNet.Numerics.LinearAlgebra;
 using System.Text;
+using System.Drawing;
 
 namespace ManimLibTest
 {
@@ -152,6 +155,37 @@ namespace ManimLibTest
             slice = array2.SetRowSlice(insert, 2, start: 0, end: -1, step: 2);
             Debug.WriteLine(slice.ToMatrixString());
             CollectionAssert.AreEqual(equal2, slice, "Failed array[0:-1:2, 2]");
+        }
+
+        [TestMethod]
+        public void ReadSVGFile()
+        {
+            var doc = SvgDocument.Open(@"C:\Users\jjask\Pictures\Icons\SVG\Windows 10\Settings.svg");
+            var paths = doc.Children.FindSvgElementsOf<SvgPath>();
+            List<List<Vector<double>>> MobjectPoints = new List<List<Vector<double>>>();
+            foreach (SvgPath path in paths)
+            {
+                if (path.ShouldWriteElement())
+                {
+                    Debug.WriteLine("> " + path.ID);
+                    List<Vector<double>> points = new List<Vector<double>>();
+                    points.Add(path.PathData[0].Start.ToVector());
+                    foreach (var data in path.PathData)
+                    {
+                        var vPoint = data.End.ToVector();
+                        points.Add(vPoint);
+                        Debug.WriteLine($"<{vPoint[0]}, {vPoint[1]}>");
+                    }
+                    Debug.WriteLine("----------------------");
+                    MobjectPoints.Add(points);
+                }
+            }
+            //foreach (Vector<double> point in doc.Path.PathPoints.Select(pf => Vector<double>.Build.DenseOfArray(
+            //    new double[] { pf.X, pf.Y }
+            //)))
+            //{
+            //    Debug.WriteLine($"<{point[0]}, {point[1]}>");
+            //}
         }
     }
 
@@ -336,6 +370,14 @@ namespace ManimLibTest.Utils
             }
 
             return s.ToString();
+        }
+    }
+
+    public static class SpaceOps
+    {
+        public static Vector<double> ToVector(this PointF pf)
+        {
+            return Vector<double>.Build.DenseOfArray(new double[] { pf.X, pf.Y });
         }
     }
 }

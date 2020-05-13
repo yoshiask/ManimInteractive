@@ -8,6 +8,44 @@ namespace ManimLib
 {
     public static class Constants
     {
+        public const double START_X = 30;
+        public const double START_Y = 20;
+        public const string NORMAL = "NORMAL";
+        public const string ITALIC = "ITALIC";
+        public const string OBLIQUE = "OBLIQUE";
+        public const string BOLD = "BOLD";
+
+        public const bool TEX_USE_CTEX = false;
+        public const string TEX_TEXT_TO_REPLACE = "YourTextHere";
+        public static readonly string TEMPLATE_TEX_FILE = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(),
+            TEX_USE_CTEX ? "ctex_template.tex" : "tex_template.tex");
+        /// <summary>
+        /// Reads and returns the contents of the template TeX file body.
+        /// This will probably not work in sandboxed environments,
+        /// like UWP. In those cases, read the file manually from <see cref="TEMPLATE_TEX_FILE"/>
+        /// or compile the file with the app's assets.
+        /// </summary>
+        public static string GetTemplateTexFileBody()
+        {
+            try
+            {
+                return System.IO.File.ReadAllText(TEMPLATE_TEX_FILE)
+                    .Replace(TEX_TEXT_TO_REPLACE,
+                    "\\begin{align*}\n" + TEX_TEXT_TO_REPLACE + "\n\\end{align*}");
+            }
+            catch
+            {
+                // This means the file could not be accessed, so return the
+                // default TeX template.
+                // TODO: Add CTeX option
+                return "\\documentclass[preview]{standalone}\n\n\\usepackage[english]{babel}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n"
+                    + "\\usepackage{amsmath}\n\\usepackage{amssymb}\n\\usepackage{dsfont}\n\\usepackage{setspace}\n\\usepackage{tipa}\n\\usepackage{relsize}\n"
+                    + "\\usepackage{textcomp}\n\\usepackage{mathrsfs}\n\\usepackage{calligra}\n\\usepackage{wasysym}\n\\usepackage{ragged2e}\n\\usepackage{physics}\n"
+                    + "\\usepackage{xcolor}\n\\usepackage{microtype}\n\\DisableLigatures{encoding = *, family = *}\n%\\usepackage[UTF8]{ctex}\n\\linespread{1}\n\n\\begin{document}"
+                    + "\n\nYourTextHere\n\n\\end{document}";
+            }
+        }
+
         // TODO: Set these to PRODUCTION_QUALITY_CAMERA_CONFIG["pixel_height"]
         public const double DEFAULT_PIXEL_HEIGHT = 1440;
         public const double DEFAULT_PIXEL_WIDTH = 2560;

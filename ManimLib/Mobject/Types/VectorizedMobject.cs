@@ -41,6 +41,34 @@ namespace ManimLib.Mobject.Types
         public VMobject(string name = null, Color color = default, int dim = 3, Mobject target = null)
             : base(name, color, dim, target) { }
 
+        public new VMobject Copy()
+        {
+            var parents = Parents;
+            Parents = new List<Mobject>();
+            var copyMobj = (VMobject)MemberwiseClone();
+            Parents = parents;
+
+            copyMobj.Points = Points;
+            copyMobj.Submobjects = new List<VMobject>();
+            foreach (VMobject submobj in Submobjects)
+                copyMobj.Add(submobj.Copy());
+            copyMobj.MatchUpdaters(this);
+            return copyMobj;
+        }
+
+        public VMobject Deepcopy()
+        {
+            var parents = Parents;
+            Parents = new List<Mobject>();
+            VMobject result = (VMobject)MemberwiseClone();
+            result.Color = new Color(Color.A, Color);
+            result.Name = String.Copy(Name);
+            result.Points = ((Vector<double>[])Points.ToArray().Clone()).ToList();
+            result.Submobjects = ((VMobject[])Submobjects.ToArray().Clone()).ToList();
+            result.Updaters = ((Func<Mobject, double, Mobject>[])Updaters.ToArray().Clone()).ToList();
+            return result;
+        }
+
         #region Colors
         public override Mobject InitColors()
         {

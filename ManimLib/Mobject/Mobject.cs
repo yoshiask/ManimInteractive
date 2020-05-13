@@ -1165,6 +1165,10 @@ namespace ManimLib.Mobject
             }
             return this;
         }
+        public Mobject Add(IList<Mobject> submobjects)
+        {
+            return Add(submobjects.ToArray());
+        }
         public Mobject AddToBack(params Mobject[] submobjects)
         {
             if (submobjects.Contains(this))

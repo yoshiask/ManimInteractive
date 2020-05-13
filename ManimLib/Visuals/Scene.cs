@@ -5,19 +5,20 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text;
 using static ManimLib.Common;
+using ManimLib.Mobject;
 
 namespace ManimLib.Visuals
 {
     public class Scene
     {
         #region Properties
-        public List<Mobject> Objects {
+        public List<Mobject.Mobject> Objects {
             get {
-                var _objects = new List<IManimElement>(Commands).FindAll((e) => e.GetType() == typeof(Mobject));
-                List<Mobject> objects = new List<Mobject>();
+                var _objects = new List<IManimElement>(Commands).FindAll((e) => e.GetType() == typeof(Mobject.Mobject));
+                List<Mobject.Mobject> objects = new List<Mobject.Mobject>();
                 foreach (IManimElement e in _objects)
                 {
-                    objects.Add((Mobject)e);
+                    objects.Add((Mobject.Mobject)e);
                 }
                 return objects;
             }
@@ -85,11 +86,11 @@ namespace ManimLib.Visuals
             }
             else
             {
-                return NewVector(Iterables.Zeros<double>(2));
+                return SpaceOps.GetZeroVector(2);
             }
         }
 
-        public void SetShape(string name, Mobject newShape)
+        public void SetShape(string name, Mobject.Mobject newShape)
         {
             var shape = GetShape(name);
             if (shape != null)
@@ -97,7 +98,7 @@ namespace ManimLib.Visuals
                 Objects[Objects.IndexOf(shape)] = newShape;
             }
         }
-        public Mobject GetShape(string name)
+        public Mobject.Mobject GetShape(string name)
         {
             return Objects.Find((s) => s.Name == name);
         }
@@ -105,7 +106,7 @@ namespace ManimLib.Visuals
         {
             Objects.Remove(GetShape(name));
         }
-        public void RemoveShape(Mobject shape)
+        public void RemoveShape(Mobject.Mobject shape)
         {
             Objects.Remove(shape);
         }

@@ -129,7 +129,6 @@ namespace ManimLib.Utils
                 yield return i;
         }
 
-
         public static List<T> Interleave<T>(IList<T> first, IList<T> second)
         {
             // I'll assume both have the same length and are
@@ -146,5 +145,7 @@ namespace ManimLib.Utils
 
             return result;
         }
+
+        public static List<T> MergeAdjacentPairs<T>(IList<Tuple<T, T>> pairs)
     }
 }
