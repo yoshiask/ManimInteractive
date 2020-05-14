@@ -56,7 +56,7 @@ namespace ManimLib.Mobject.Types
             return copyMobj;
         }
 
-        public VMobject Deepcopy()
+        public new VMobject Deepcopy()
         {
             var parents = Parents;
             Parents = new List<Mobject>();
@@ -469,7 +469,8 @@ namespace ManimLib.Mobject.Types
         public (Vector<double> Start, Vector<double> End) GetGradientStartAndEndPoints()
         {
             if (ShadeIn3D)
-                return Get3DGradientStartAndEndPoints();
+                throw new NotImplementedException("return Utils.ThreeDUtils.Get3DGradientStartAndEndPoints()");
+                //return Get3DGradientStartAndEndPoints();
             else
             {
                 Vector<double> direction = Style.SheenDirection;
@@ -602,15 +603,15 @@ namespace ManimLib.Mobject.Types
         /// If two points are passed in, the first is intepreted as a handle,
         /// the second as an anchor
         /// </summary>
-        public VMobject AddSmoothCurveTo(params Vector<double>[] points)
+        public VMobject AddSmoothCurveTo(IList<Vector<double>> points)
         {
             Vector<double> handle2, newAnchor;
-            if (points.Length == 1)
+            if (points.Count == 1)
             {
                 handle2 = null;
                 newAnchor = points[0];
             }
-            else if (points.Length == 2)
+            else if (points.Count == 2)
             {
                 handle2 = points[0];
                 newAnchor = points[1];
@@ -641,6 +642,14 @@ namespace ManimLib.Mobject.Types
                 AppendPoints(lastA2, handle1, handle2, newAnchor);
             }
             return this;
+        }
+        /// <summary>
+        /// If two points are passed in, the first is intepreted as a handle,
+        /// the second as an anchor
+        /// </summary>
+        public VMobject AddSmoothCurveTo(params Vector<double>[] points)
+        {
+            return AddSmoothCurveTo(points);
         }
 
         public bool HasNewPathStarted()

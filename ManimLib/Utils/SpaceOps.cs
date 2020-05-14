@@ -30,6 +30,7 @@ namespace ManimLib.Utils
 
         public static Quaternion QuaternionMultiply(params Quaternion[] quats)
         {
+            QuaternionMultiply(new Quaternion(), new Quaternion());
             if (quats.Length <= 0)
                 return new Quaternion(0, 0, 0, 1);
 
@@ -47,7 +48,7 @@ namespace ManimLib.Utils
             return new Quaternion(axis[X] * s, axis[Y] * s, axis[Z] * s, Cos(angle / 2));
         }
 
-        public static (double, Vector<double>) AngleAxisFromQuaternion(Quaternion q)
+        public static (double angle, Vector<double> axis) AngleAxisFromQuaternion(Quaternion q)
         {
             var axis = Vector.Build.DenseOfArray(new double[] { q.ImagX, q.ImagY, q.ImagZ });
             var axisNorm = axis.Normalize(axis.L2Norm());

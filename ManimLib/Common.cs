@@ -16,6 +16,23 @@ namespace ManimLib
 
         public const string PY_TAB = @"    ";
         public const string PythonSceneHeader = "#!/usr/bin/env python\r\n\r\nfrom manimlib.imports import *\r\n\r\n";
+    
+        public static double DegreesToRadians(double degrees)
+        {
+            return (degrees / 360) * Constants.TAU;
+        }
+        public static double RadiansToDegrees(double radians)
+        {
+            return (radians / Constants.TAU) * 360;
+        }
+
+        /// <summary>
+        /// Inerse cotangent
+        /// </summary>
+        public static double Acot(double x)
+        {
+            return System.Math.PI / 2 - System.Math.Atan(x);
+        }
     }
 
     public static class StringExtensions
@@ -486,6 +503,15 @@ namespace ManimLib
             return output;
         }
         public static double[,] CastToDoubleArray(this int[,] input)
+        {
+            var output = new double[input.GetLength(0), input.GetLength(1)];
+            for (int j = 0; j < input.GetLength(1); j++)
+                for (int r = 0; r < input.GetLength(0); r++)
+                    output[r, j] = (double)input[r, j];
+
+            return output;
+        }
+        public static double[,] CastToDoubleArray(this float[,] input)
         {
             var output = new double[input.GetLength(0), input.GetLength(1)];
             for (int j = 0; j < input.GetLength(1); j++)

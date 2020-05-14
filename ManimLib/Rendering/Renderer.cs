@@ -1,4 +1,5 @@
 ﻿using ManimLib.Visuals;
+using RL;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -18,6 +19,7 @@ namespace ManimLib.Rendering
 
         }
     }
+
     public class ExportOptions
     {
         public bool Preview = false;
@@ -28,7 +30,7 @@ namespace ManimLib.Rendering
         public bool SavePNG = false;
         public bool UseTransparency = false;
         public int StartAtAnimation = 0;
-        public string BackgroundColor = Common.Colors["BLACK"];
-        //public CameraConfig Camera = CameraConfig.Production;
+        public Color BackgroundColor = Constants.COLORS[Constants.Colors.BLACK];
+        public CameraConfig Camera = CameraConfig.Production;
     }
 }

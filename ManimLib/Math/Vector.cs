@@ -1,34 +1,43 @@
-﻿using MathNet.Spatial.Euclidean;
+﻿using MathNet.Numerics.LinearAlgebra;
+using MathNet.Spatial.Euclidean;
 
 namespace ManimLib.Math
 {
     public static class PyVector
     {
-        public static string ToPythonVector(Vector2D v)
+        public static string ToPythonVector(this Vector<double> v)
         {
             string result = "";
-            result += v.X.ToString();
-            result += (v.X < 0) ? "*LEFT" : "*RIGHT";
+            result += v[0].ToString();
+            result += (v[0] < 0) ? "*LEFT" : "*RIGHT";
 
-            result += " + ";
-            result += v.Y.ToString();
-            result += (v.Y < 0) ? "*UP" : "*DOWN";
+            if (v.Count > 1)
+            {
+                result += " + ";
+                result += v[1].ToString();
+                result += (v[1] < 0) ? "*UP" : "*DOWN";
+            }
+
+            if (v.Count > 2)
+            {
+                result += " + ";
+                result += v[2].ToString();
+                result += (v[2] < 0) ? "*IN" : "*OUT";
+            }
 
             return result;
         }
-        public static string PointToPythonVector(Point2D p)
+        public static string PointToPythonVector(this Point2D p)
         {
-            return ToPythonVector(new Vector2D(p.X, p.Y));
+            return ToPythonVector(Vector<double>.Build.DenseOfArray(new double[] { p.X, p.Y }));
         }
-        public static string PointToPythonVector(decimal x, decimal y)
+        public static string PointToPythonVector(double x, double y)
         {
-            return ToPythonVector(new Vector2((float)x, (float)y));
+            return ToPythonVector(Vector<double>.Build.DenseOfArray(new double[] { x, y }));
         }
-
-        public static readonly Vector2D UP = new Vector2D(0, 1);
-        public static readonly Vector2D DOWN = new Vector2D(0, -1);
-        public static readonly Vector2D LEFT = new Vector2D(-1, 0);
-        public static readonly Vector2D RIGHT = new Vector2D(1, 0);
-        public static readonly Vector2D ORIGIN = new Vector2D(0, 0);
+        public static string PointToPythonVector(params double[] components)
+        {
+            return ToPythonVector(Vector<double>.Build.DenseOfArray(components));
+        }
     }
 }

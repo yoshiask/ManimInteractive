@@ -61,12 +61,18 @@ namespace ManimLib.Mobject
             double drawAlpha = DrawRateFunction(alpha);
             double fadeAlpha = FadeRateFunction(alpha);
 
-            Rect bounds;
+            double boundsX, boundsY;
             if (BackAndForth && time % 2 == 1)
-                bounds = new Rect(1 - drawAlpha, 1);
+            {
+                boundsX = 1 - drawAlpha;
+                boundsY = 1;
+            }
             else
-                bounds = new Rect(0, drawAlpha);
-            FullFamilyBecomePartial(growing, vmobj, bounds);
+            {
+                boundsX = 0;
+                boundsY = drawAlpha;
+            }
+            FullFamilyBecomePartial(growing, vmobj, (int)boundsX, (int)boundsY);
             growing.SetStroke(new Color[] { colors[index] }, width: msw);
 
             if (time >= 1)

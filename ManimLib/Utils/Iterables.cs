@@ -145,7 +145,5 @@ namespace ManimLib.Utils
 
             return result;
         }
-
-        public static List<T> MergeAdjacentPairs<T>(IList<Tuple<T, T>> pairs)
     }
 }

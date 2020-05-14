@@ -231,6 +231,14 @@ namespace ManimLib.Mobject
             );
             return this;
         }
+        public Mobject Scale(double[] scaleFactors, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
+        {
+            ApplyPointFunctionAboutPoint(
+                points => points.Multiply(Vector<double>.Build.DenseOfArray(scaleFactors)),
+                aboutPoint, aboutEdge
+            );
+            return this;
+        }
 
         public Mobject RotateAboutOrigin(double angle, Vector<double> axis = null)
         {

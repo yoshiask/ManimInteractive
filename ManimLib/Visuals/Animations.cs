@@ -1,4 +1,6 @@
 ﻿using ManimLib.Math;
+using ManimLib.Mobject;
+using ManimLib.Utils;
 using System;
 
 namespace ManimLib.Visuals
@@ -16,8 +18,8 @@ namespace ManimLib.Visuals
             public string Name { get; set; }
             public double RunTime { get; set; }
             public double LagRatio { get; set; }
-            public Mobject Mobject { get; set; }
-            public Mobject StartingMobject { get; set; }
+            public Mobject.Mobject Mobject { get; set; }
+            public Mobject.Mobject StartingMobject { get; set; }
 
             public Animation()
             {
@@ -25,14 +27,14 @@ namespace ManimLib.Visuals
                 RunTime = 1.0;
                 LagRatio = 0;
             }
-            public Animation(Mobject mobject)
+            public Animation(Mobject.Mobject mobject)
             {
                 Mobject = mobject;
                 RateFunction = RateFunctions.Smooth;
                 RunTime = 1.0;
                 LagRatio = 0;
             }
-            public Animation(Mobject mobject, Func<double, double> rateFunc, double runTime, double lagRatio)
+            public Animation(Mobject.Mobject mobject, Func<double, double> rateFunc, double runTime, double lagRatio)
             {
                 Mobject = mobject;
                 RateFunction = rateFunc;
@@ -59,11 +61,11 @@ namespace ManimLib.Visuals
 
             public void Interpolate(double alpha)
             {
-                alpha = RateFunctions.Clip(alpha, 0, 1);
+                alpha = SimpleFunctions.Clip(alpha, 0, 1);
                 RateFunction(alpha);
             }
 
-            public void InterpolateMobject(Mobject obj, Mobject startingObj, double alpha)
+            public void InterpolateMobject(Mobject.Mobject obj, Mobject.Mobject startingObj, double alpha)
             {
                 // Typically implemented by subclass
                 return;
@@ -74,7 +76,7 @@ namespace ManimLib.Visuals
                 double fullLength = (numSubMobjects - 1) * LagRatio + 1;
                 double value = alpha * fullLength;
                 double lower = index * LagRatio;
-                return RateFunctions.Clip(value - lower, 0, 1);
+                return SimpleFunctions.Clip(value - lower, 0, 1);
             }
 
             public string GetManimType()
@@ -85,7 +87,7 @@ namespace ManimLib.Visuals
 
         public abstract class ShowPartial : Animation
         {
-            public void InterpolateSubmobject(Mobject mobject, Mobject startMobject, double alpha)
+            public void InterpolateSubmobject(Mobject.Mobject mobject, Mobject.Mobject startMobject, double alpha)
             {
 
             }
