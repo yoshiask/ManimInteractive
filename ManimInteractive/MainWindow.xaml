@@ -80,6 +80,11 @@
                            Icon="/Assets/Icons/Circle_16x.png"
                            LargeIcon="/Assets/Icons/Circle_32x.png"
                            Click="NewEllipseButton_Click"/>
+                    <Fluent:Button Header="New SVG"
+                           x:Name="NewSvgButton"
+                           Icon="/Assets/Icons/Circle_16x.png"
+                           LargeIcon="/Assets/Icons/Circle_32x.png"
+                           Click="NewSvgButton_Click"/>
                     <Fluent:Button Header="New Textbox"
                            x:Name="NewTextboxButton"
                            Icon="/Assets/Icons/TextBox_16x.png"

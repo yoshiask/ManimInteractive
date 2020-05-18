@@ -2,47 +2,112 @@
 using Color = RL.Color;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using static ManimLib.Constants;
 using System.IO;
-using System.Security.Cryptography;
 using Svg;
 using MathNet.Numerics.LinearAlgebra;
 using ManimLib.Utils;
-using Svg.Transforms;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Drawing.Imaging;
+using System.Xml;
+using System.Diagnostics;
+using MathNet.Numerics;
+using ManimLib.Math;
 
 namespace ManimLib.Mobject.Svg
 {
     public class SvgMobject : VMobject
     {
-        //region Properties
+        #region Properties
         public bool ShouldCenter { get; set; } = true;
         public double Height { get; set; } = 2.0;
         public double Width { get; set; } = 0;
         // Must be filled in a subclass, or when called
         public string FileName { get; set; }
         public string FilePath { get; set; }
+        public string SvgText { get; set; }
         public bool UnpackGroups { get; set; } = true; // If false, creates a hierarchy of VGroups
         public double StrokeWidth { get; set; } = DEFAULT_STROKE_WIDTH;
         public double FillOpacity { get; set; } = 1.0;
         //public Color FillColor { get; set; } = COLORS[Colors.LIGHT_GREY];
 
-        public Dictionary<string, SvgElement> RefToElement { get; set; }
-        //endregion
+        public Dictionary<string, XmlElement> RefToElement { get; set; }
+        #endregion
 
-        public SvgMobject(string fileName = null, string name = null, Color color = null, int dim = 3, Mobject target = null) : base(name, color, dim, target)
+        #region Helpers
+        public static List<Vector<double>> StringToPoints(string coordString)
         {
-            FileName = fileName;
-            EnsureValidFile();
-            MoveIntoPosition();
+            double[] numbers = StringToNumbers(coordString);
+            List<Vector<double>> points = new List<Vector<double>>(numbers.Length + 1);
+            for (int i = 0; i < numbers.Length; i += 2)
+            {
+                double x = numbers[i];
+                double y = i == numbers.Length ? 0 : numbers[i];
+                points.Add(Vector<double>.Build.DenseOfArray(new double[] { x, y }));
+            }
+            return points;
+        }
+
+        /// <summary>
+        /// Parses a string containing a comma- and space-delimited list of numbers
+        /// </summary>
+        public static double[] StringToNumbers(string numString)
+        {
+            numString = numString.Replace("-", ",-").Replace("e,-", "e-");
+            var splitString = numString.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            double[] nums = new double[splitString.Length];
+            for (int i = 0; i < nums.Length; i++)
+            {
+                nums[i] = Double.Parse(splitString[i]);
+            }
+            return nums;
+        }
+
+        public static Color ProcessColor(string colorString, Color defaultColor = null)
+        {
+            if (String.IsNullOrWhiteSpace(colorString) || colorString == "none")
+            {
+                return Color.Transparent;
+            }
+            else if (colorString == "#FFF")
+            {
+                return COLORS[Colors.WHITE];
+            }
+            else if (colorString == "#000")
+            {
+                return COLORS[Colors.BLACK];
+            }
+            else
+            {
+                try
+                {
+                    return new Color(colorString);
+                }
+                catch
+                {
+                    return defaultColor ?? COLORS[Colors.WHITE];
+                }
+            }
+        }
+        #endregion
+
+        public SvgMobject(string fileName = null, string svgText = null, string name = null, Color color = null, int dim = 3, Mobject target = null) : base(name, color, dim, target)
+        {
+            if (fileName != null)
+            {
+                FileName = fileName;
+                EnsureValidFile();
+                MoveIntoPosition();
+            }
+            else if (svgText != null)
+            {
+                SvgText = svgText;
+            }
         }
 
         public void EnsureValidFile()
         {
-            if (String.IsNullOrWhiteSpace(FileName))
+            if (String.IsNullOrWhiteSpace(FileName) || SvgText == null)
                 throw new ArgumentNullException("fileName", "Must specify file for SVGMobject");
 
             string[] possiblePaths = new string[]
@@ -65,134 +130,293 @@ namespace ManimLib.Mobject.Svg
 
         public void GeneratePoints()
         {
-            var doc = SvgDocument.Open(FilePath);
-            var mobjects = GetMobjectsFrom(doc);
+            // TODO: Some platforms, like UWP, don't support the vvvv.SVG library
+            // because they don't have System.Drawing. Looks like I have to resort
+            // back to walking the XML DOM manually...
+            //SvgDocument doc = FilePath != null ? SvgDocument.Open(FilePath) : SvgDocument.FromSvg<SvgDocument>(SvgText);
+            XmlDocument doc = new XmlDocument();
+            if (FilePath != null)
+                doc.Load(FilePath);
+            else
+                doc.LoadXml(SvgText);
+
+            var mobjects = GetMobjectsFrom(doc.DocumentElement);
             if (UnpackGroups)
                 Add(mobjects);
             else
                 Add(mobjects[0].Submobjects);
         }
 
-        // TODO: Test this
-        public List<Mobject> GetMobjectsFrom(SvgDocument doc)
+        public List<VMobject> GetMobjectsFrom(XmlElement element)
         {
-            // Investigate using SvgVisualElement and use a single foreach loop
-            // TODO: Is it faster to loop through the children once and use
-            // conditionals?
-            List<Mobject> mobjects = new List<Mobject>();
-            foreach (SvgCircle circle in doc.Children.FindSvgElementsOf<SvgCircle>())
+            List<VMobject> mobjects = new List<VMobject>();
+            switch (element.Name)
             {
-                // Handle cirlce
+                case "defs":
+                    UpdateRefToElement(element);
+                    break;
+
+                case "style":
+                    // TODO: Handle style
+                    break;
+
+                case "g":
+                case "svg":
+                case "symbol":
+                    foreach (XmlElement child in element.ChildNodes)
+                    {
+                        mobjects.AddRange(GetMobjectsFrom(child));
+                    }
+                    break;
+
+                case "path":
+                    mobjects.Add(new VMobjectFromSvgPathstring(element.Attributes["d"].Value));
+                    break;
+
+                case "use":
+                    mobjects.AddRange(UseToMobjects(element));
+                    break;
+
+                case "rect":
+                    mobjects.Add(RectToMobject(element));
+                    break;
+
+                case "circle":
+                    mobjects.Add(CircleToMobject(element));
+                    break;
+
+                case "ellipse":
+                    mobjects.Add(EllipseToMobject(element));
+                    break;
+
+                case "polyline":
+                case "polygon":
+                    mobjects.Add(PolygonToMobject(element));
+                    break;
+
+                default:
+                    Debug.WriteLine("Unknown element type: " + element.Name);
+                    break;
             }
-            foreach (SvgEllipse ellipse in doc.Children.FindSvgElementsOf<SvgEllipse>())
-            {
-                // Handle ellipse
-            }
-            foreach (SvgRectangle rectangle in doc.Children.FindSvgElementsOf<SvgRectangle>())
-            {
-                // Handle rectangle
-            }
-            foreach (SvgPolygon polygon in doc.Children.FindSvgElementsOf<SvgPolygon>())
-            {
-                // Handle polygon & polyline
-                VMobject mobj = new VMobject(polygon.ID, new Color(polygon.Fill.ToString()), dim: 2);
-                mobj.Points.Clear();
-                for (int i = 0; i+1 < polygon.Points.Count; i+=2)
-                {
-                    mobj.Points.Add(Vector<double>.Build.DenseOfArray(new double[] {
-                        polygon.Points[i], polygon.Points[i + 1]
-                    }));
-                }
-                mobjects.Add(mobj);
-            }
-            foreach (SvgPath path in doc.Children.FindSvgElementsOf<SvgPath>())
-            {
-                // TODO: Recognize circles, rectangles, and other primitives that
-                // have a Manim equivalent.
-                VMobject mobj = new VMobject(path.ID, new Color(path.Fill.ToString()), dim: 2);
-                mobj.Points.Clear();
-                mobj.Points.Add(path.PathData[0].Start.ToVector());
-                foreach (var data in path.PathData)
-                {
-                    var vPoint = data.End.ToVector();
-                    mobj.Points.Add(vPoint);
-                }
-                mobjects.Add(mobj);
-            }
-            foreach (SvgUse reference in doc.Children.FindSvgElementsOf<SvgUse>())
-            {
-                // Handle links to other objects
-            }
+
+            //foreach (SvgPolygon polygon in doc.SelectNodes("polygon"))
+            //{
+            //    // Handle polygon & polyline
+            //    VMobject mobj = new VMobject(polygon.ID, new Color(polygon.Fill?.ToString()), dim: 2);
+            //    mobj.Points.Clear();
+
+            //    for (int i = 0; i+1 < polygon.Points.Count; i+=2)
+            //    {
+            //        mobj.Points.Add(Vector<double>.Build.DenseOfArray(new double[] {
+            //            polygon.Points[i], polygon.Points[i + 1]
+            //        }));
+            //    }
+            //    mobjects.Add(mobj);
+            //}
+            //foreach (SvgPath path in doc.SelectNodes("path"))
+            //{
+            //    // TODO: Recognize circles, rectangles, and other primitives that
+            //    // have a Manim equivalent.
+            //    VMobject mobj = new VMobject(path.ID, new Color(path.Fill?.ToString()), dim: 2);
+            //    mobj.Points.Clear();
+            //    mobj.Points.Add(path.PathData[0].Start.ToVector());
+            //    foreach (var data in path.PathData)
+            //    {
+            //        var vPoint = data.End.ToVector();
+            //        mobj.Points.Add(vPoint);
+            //    }
+            //    mobjects.Add(mobj);
+            //}
             return mobjects;
         }
 
-        public void HandleTransforms(SvgElement element, VMobject vmobj)
+        #region SVG Element to Mobject
+        public List<VMobject> GToMobjects(XmlElement gElement)
+        {
+            VMobject mobj = new VGroup(GetMobjectsFrom(gElement));
+            HandleTransforms(gElement, mobj);
+            return mobj.Submobjects;
+        }
+
+        /// <summary>
+        /// Returns a new VMobjectFromSvgPathstring using the provided pathString.
+        /// Use <see cref="VMobjectFromSvgPathstring.VMobjectFromSvgPathstring(string, string, Color, int, Mobject)"/>.
+        /// </summary>
+        [Obsolete]
+        public VMobject PathStringToVMobject(string pathString)
+        {
+            return new VMobjectFromSvgPathstring(pathString);
+        }
+
+        public List<VMobject> UseToMobjects(XmlElement useElement)
+        {
+            // Remove initial "#" character
+            string refName = useElement.Attributes["href"].Value.Substring(1);
+            if (!RefToElement.ContainsKey(refName))
+            {
+                // TODO: Find a way to reasonably handle the reference
+                // not being recognized
+                //return new List<VMobject>() { new VMobject() };
+                throw new KeyNotFoundException($"The reference \"{refName}\" was not recognized");
+            }
+            return GetMobjectsFrom(RefToElement[refName]);
+        }
+
+        public VMobject PolygonToMobject(XmlElement polygonElement)
+        {
+            string pathString = polygonElement.Attributes["points"].Value;
+            return new VMobject
+            {
+                Points = StringToPoints(pathString)
+            };
+        }
+
+        public Circle CircleToMobject(XmlElement circleElement)
+        {
+            double x, y, r;
+            string xVal = circleElement.GetAttribute("cx");
+            string yVal = circleElement.GetAttribute("cy");
+            string rVal = circleElement.GetAttribute("r");
+            Double.TryParse(xVal, out x);
+            Double.TryParse(yVal, out y);
+            Double.TryParse(rVal, out r);
+
+            return (Circle)(new Circle(radius: r).Shift(x * RIGHT + y * DOWN));
+        }
+
+        public Circle EllipseToMobject(XmlElement ellipseElement)
+        {
+            string xVal = ellipseElement.GetAttribute("cx");
+            string yVal = ellipseElement.GetAttribute("cy");
+            string rxVal = ellipseElement.GetAttribute("rx");
+            string ryVal = ellipseElement.GetAttribute("ry");
+            Double.TryParse(xVal, out double x);
+            Double.TryParse(yVal, out double y);
+            Double.TryParse(rxVal, out double rx);
+            Double.TryParse(ryVal, out double ry);
+
+            return (Circle)(new Circle().Scale(rx, aboutEdge: RIGHT).Scale(ry, aboutEdge: UP)
+                .Shift(x * RIGHT + y * DOWN));
+        }
+
+        public VMobject RectToMobject(XmlElement rectElement)
+        {
+            Color fillColor = ProcessColor(rectElement.GetAttribute("fill"));
+            Color strokeColor = ProcessColor(rectElement.GetAttribute("stroke"));
+            bool hasStrokeWidth = Double.TryParse(rectElement.GetAttribute("stroke-width"), out double strokeWidth);
+            bool hasCornerRadius = Double.TryParse(rectElement.GetAttribute("corner-radius"), out double cornerRadius);
+            Double.TryParse(rectElement.GetAttribute("width"), out double width);
+            Double.TryParse(rectElement.GetAttribute("height"), out double height);
+
+            VMobject vmobj;
+            if (!hasCornerRadius || cornerRadius == 0)
+            {
+                vmobj = new Rectangle(
+                    width: width,
+                    height: height
+                );
+                vmobj.SetStyle(strokeWidth: strokeWidth,
+                    strokeColor: new Color[] { strokeColor },
+                    fillColor: new Color[] { fillColor });
+            }
+            else
+            {
+                vmobj = new RoundedRectangle(
+                    width: width,
+                    height: height,
+                    cornerRadius: cornerRadius
+                );
+                vmobj.SetStyle(strokeWidth: strokeWidth,
+                    strokeColor: new Color[] { strokeColor },
+                    fillColor: new Color[] { fillColor });
+            }
+            return (VMobject)vmobj.Shift(vmobj.GetCenter() - vmobj.GetCorner(UP + LEFT));
+        }
+        #endregion
+
+        public void HandleTransforms(XmlElement element, VMobject vmobj)
         {
             double x, y;
-            element.TryGetAttribute("x", out string xVal);
-            element.TryGetAttribute("y", out string yVal);
+            string xVal = element.GetAttribute("x");
+            string yVal = element.GetAttribute("y");
             Double.TryParse(xVal, out x);
             Double.TryParse(yVal, out y);
 
-            foreach (SvgTransform transform in element.Transforms)
-            {
-                if (transform as SvgMatrix != null)
-                {
-                    var matrixTransform = transform as SvgMatrix;
-                    var matrix = Matrix<double>.Build.DenseOfArray(matrixTransform.Points.Reshape((3, 2)).CastToDoubleArray());
-                    for (int i = 0; i < vmobj.Points.Count; i++)
-                    {
-                        // matrix[:2, :2] = transform[:2, :]
-                        // matrix[1] *= -1
-                        // matrix[:, 1] *= -1
+            MatchCollection transforms = Regex.Matches(element.Attributes["transforms"].Value,
+                @"(?<command>[A-Za-z]*)\((?<params>[\d\s-.,]*)\)");
 
-                        vmobj.Points[i] *= matrix;
-                    }
-                    x = matrix[2, 0];
-                    y = matrix[2, 1];
-                    vmobj.Shift(x * RIGHT + (-y) * UP);
-                }
-                else if (transform as SvgTranslate != null)
+            foreach (Match transform in transforms)
+            {
+                string command = transform.Groups["command"].Value;
+                double[] parameters = StringToNumbers(transform.Groups["params"].Value);
+                
+                switch (command)
                 {
-                    var translateTransform = transform as SvgTranslate;
-                    // Shouldn't these be added to the current X and Y values, not overwrite?
-                    x = translateTransform.X;
-                    y = translateTransform.Y;
-                    vmobj.Shift(x * RIGHT + (-y) * UP);
-                }
-                else if (transform as SvgScale != null)
-                {
-                    var scaleTransform = transform as SvgScale;
-                    vmobj.Scale(new double[] { scaleTransform.X, scaleTransform.Y });
-                }
-                else if (transform as SvgRotate != null)
-                {
-                    var rotateTransform = transform as SvgRotate;
-                    Vector<double> aboutPoint = Vector<double>.Build.DenseOfArray(
-                        new double[] { rotateTransform.CenterX, rotateTransform.CenterY }    
-                    );
-                    vmobj.Rotate(Common.DegreesToRadians(rotateTransform.Angle), aboutPoint);
-                }
-                else if (transform as SvgSkew != null)
-                {
-                    var skewTransform = transform as SvgSkew;
-                    double mX = 1 / System.Math.Tan(Common.DegreesToRadians(skewTransform.AngleX));
-                    double mY = 1 / System.Math.Tan(Common.DegreesToRadians(skewTransform.AngleY));
-                    for (int i = 0; i < vmobj.Points.Count; i++)
-                    {
-                        // See https://en.wikipedia.org/wiki/Shear_mapping//Definition
-                        Matrix<double> skewX = Matrix<double>.Build.DenseOfArray(new double[,] {
-                               { 1, mX },
-                               { 0, 1 },
+                    case "matrix":
+                        // TODO: This is ugly, and probably not performant (since ToArray()
+                        // iterates over all nine values unnecesarily.
+                        var matrix = Matrix<double>.Build.DenseOfArray(
+                            parameters.Concat(new double[] { 0, 0, 1 }).ToArray().Reshape((3, 3)));
+                        for (int i = 0; i < vmobj.Points.Count; i++)
+                        {
+                            // matrix[:2, :2] = transform[:2, :]
+                            // matrix[1] *= -1
+                            // matrix[:, 1] *= -1
+
+                            vmobj.Points[i] *= matrix;
+                        }
+                        x = matrix[2, 0];
+                        y = matrix[2, 1];
+                        vmobj.Shift(x * RIGHT + (-y) * UP);
+                        break;
+
+                    case "translate":
+                        // Shouldn't these add to the current X and Y values, not overwrite?
+                        x = parameters[0];
+                        y = parameters.Length > 1 ? parameters[1] : 0;
+                        vmobj.Shift(x * RIGHT + (-y) * UP);
+                        break;
+
+                    case "scale":
+                        vmobj.Scale(new double[] {
+                            parameters[0],
+                            parameters.Length > 1 ? parameters[1] : 1.0
                         });
-                        Matrix<double> skewY = Matrix<double>.Build.DenseOfArray(new double[,] {
-                               { 1, 0 },
-                               { mY, 1 },
+                        break;
+
+                    case "rotate":
+                        Vector<double> aboutPoint = Vector<double>.Build.DenseOfArray(new double[] {
+                            parameters.Length == 3 ? parameters[1] : 0,
+                            parameters.Length == 3 ? parameters[2] : 0
                         });
-                        Vector<double> newPoint = skewX * vmobj.Points[i];
-                        newPoint = skewY * newPoint;
-                        vmobj.Points[i] = newPoint;
-                    }
+                        vmobj.Rotate(Common.DegreesToRadians(parameters[0]), aboutPoint);
+                        break;
+
+                    case "skewX":
+                        double mX = 1 / System.Math.Tan(Common.DegreesToRadians(parameters[0]));
+                        for (int i = 0; i < vmobj.Points.Count; i++)
+                        {
+                            // See https://en.wikipedia.org/wiki/Shear_mapping#Definition
+                            Matrix<double> skewX = Matrix<double>.Build.DenseOfArray(new double[,] {
+                                { 1, mX },
+                                { 0, 1 },
+                            });
+                            vmobj.Points[i] = skewX * vmobj.Points[i];
+                        }
+                        break;
+
+                    case "skewY":
+                        double mY = 1 / System.Math.Tan(Common.DegreesToRadians(parameters[0]));
+                        for (int i = 0; i < vmobj.Points.Count; i++)
+                        {
+                            // See https://en.wikipedia.org/wiki/Shear_mapping#Definition
+                            Matrix<double> skewY = Matrix<double>.Build.DenseOfArray(new double[,] {
+                                { 1, 0 },
+                                { mY, 1 },
+                            });
+                            vmobj.Points[i] = skewY * vmobj.Points[i];
+                        }
+                        break;
                 }
             }
         }
@@ -209,10 +433,10 @@ namespace ManimLib.Mobject.Svg
             }
             return outputList;
         }
-        public List<SvgElement> Flatten(params SvgElement[] inputList)
+        public List<XmlElement> Flatten(params XmlElement[] inputList)
         {
-            List<SvgElement> outputList = new List<SvgElement>();
-            foreach (SvgElement svgmobj in inputList)
+            List<XmlElement> outputList = new List<XmlElement>();
+            foreach (XmlElement svgmobj in inputList)
             {
                 if (inputList.Length > 1)
                     outputList.AddRange(Flatten(svgmobj));
@@ -222,13 +446,13 @@ namespace ManimLib.Mobject.Svg
             return outputList;
         }
 
-        public List<SvgElement> GetAllNamedChildNodes(SvgElement element)
+        public List<XmlElement> GetAllNamedChildNodes(XmlElement element)
         {
-            if (!String.IsNullOrEmpty(element.ID))
-                return new List<SvgElement>() { element };
+            if (!String.IsNullOrEmpty(element.GetAttribute("id")))
+                return new List<XmlElement>() { element };
 
-            List<SvgElement> namedChildNodes = new List<SvgElement>();
-            foreach (SvgElement e in element.Children)
+            List<XmlElement> namedChildNodes = new List<XmlElement>();
+            foreach (XmlElement e in element.ChildNodes)
                 namedChildNodes.AddRange(GetAllNamedChildNodes(e));
             return Flatten(namedChildNodes.ToArray());
         }
@@ -236,21 +460,22 @@ namespace ManimLib.Mobject.Svg
         /// This function is deprecated, please use <see cref="GetAllNamedChildNodes(SvgElement)"/>
         /// </summary>
         [Obsolete("Use GetAllNamedChildNodes()")]
-        public List<SvgElement> GetAllChildNodesHaveId(SvgElement element)
+        public List<XmlElement> GetAllChildNodesHaveId(XmlElement element)
         {
             return GetAllNamedChildNodes(element);
         }
 
-        public void UpdateRefToElement(params SvgElement[] defs)
+        public void UpdateRefToElement(params XmlElement[] defs)
         {
-            foreach (SvgElement element in defs)
+            foreach (XmlElement element in defs)
             {
-                foreach (SvgElement e in GetAllNamedChildNodes(element))
+                foreach (XmlElement e in GetAllNamedChildNodes(element))
                 {
-                    if (RefToElement.ContainsKey(e.ID))
-                        RefToElement[e.ID] = e;
+                    string id = e.GetAttribute("id");
+                    if (RefToElement.ContainsKey(id))
+                        RefToElement[id] = e;
                     else
-                        RefToElement.Add(e.ID, e);
+                        RefToElement.Add(id, e);
                 }
             }
         }
@@ -270,10 +495,11 @@ namespace ManimLib.Mobject.Svg
     {
         public string PathString { get; set; }
 
-        public VMobjectFromSvgPathstring(string pathString, string name = null, Color color = null, int dim = 3, Mobject target = null)
+        public VMobjectFromSvgPathstring(string pathString, string name = null, Color color = null, int dim = 2, Mobject target = null)
             : base(name, color, dim, target)
         {
             PathString = pathString;
+            GeneratePoints();
         }
 
         [Obsolete]
@@ -312,7 +538,7 @@ namespace ManimLib.Mobject.Svg
                 HandleCommand(part.Groups["command"].Value[0], part.Groups["param"].Value);
 
             // People treat y-coordinate differently
-            Rotate(System.Math.PI, RIGHT, ORIGIN);
+            //Rotate(System.Math.PI, RIGHT, ORIGIN);
         }
 
         public void HandleCommand(char cmd, string coordString)
@@ -321,7 +547,7 @@ namespace ManimLib.Mobject.Svg
             cmd = char.ToUpper(cmd);
             // newPoints are the points that will be added to the currPoints
             // list. This variable may get modified in the conditionals below.
-            List<Vector<double>> newPoints = StringToPoints(coordString);
+            List<Vector<double>> newPoints = SvgMobject.StringToPoints(coordString);
 
             if (isLower && Points.Count > 0)
                 newPoints.Add(Points[^1]);
@@ -413,31 +639,6 @@ namespace ManimLib.Mobject.Svg
                     AddCubicBezierCurveTo(newPoints[0], newPoints[1], newPoints[2]);
                 }
             }
-        }
-
-        public static List<Vector<double>> StringToPoints(string coordString)
-        {
-            List<double> numbers = StringToNumbers(coordString).ToList();
-            if (numbers.Count % 2 == 1)
-                numbers.Add(0);
-            int numPoints = numbers.Count; // 2
-            return numbers.Reshape((numPoints, 2)).ToJagged()
-                .Select(ds => Vector<double>.Build.DenseOfArray(ds)).ToList();
-        }
-
-        /// <summary>
-        /// Parses a string containing a comma- and space-delimited list of numbers
-        /// </summary>
-        public static List<double> StringToNumbers(string numString)
-        {
-            numString = numString.Replace("-", ",-").Replace("e,-", "e-");
-            var splitString = numString.Split(new []{ ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
-            List<double> nums = new List<double>(splitString.Length);
-            for (int i = 0; i < nums.Count; i++)
-            {
-                nums[i] = Double.Parse(splitString[i]);
-            }
-            return nums;
         }
     }
 }

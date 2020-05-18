@@ -10,9 +10,9 @@ namespace ManimLib.Mobject.Types
     public class VMobject : Mobject
     {
         #region Properties
-        public new List<VMobject> Submobjects { get; internal set; }
+        public new List<VMobject> Submobjects { get; internal set; } = new List<VMobject>();
 
-        public VMobjectStyle Style { get; set; }
+        public VMobjectStyle Style { get; set; } = new VMobjectStyle();
 
         // Indicates that it will not be displayed, but
         // that it should count in parent mobject's path
@@ -40,6 +40,20 @@ namespace ManimLib.Mobject.Types
 
         public VMobject(string name = null, Color color = default, int dim = 3, Mobject target = null)
             : base(name, color, dim, target) { }
+
+        public VMobject Add(IList<VMobject> vmobjs)
+        {
+            if (vmobjs.Contains(this))
+                throw new ArgumentException("Mobject cannot contain self.");
+            foreach (VMobject mobj in vmobjs)
+            {
+                if (!Submobjects.Contains(mobj))
+                    Submobjects.Add(mobj);
+                if (!mobj.Parents.Contains(this))
+                    mobj.Parents.Add(this);
+            }
+            return this;
+        }
 
         public new VMobject Copy()
         {
@@ -72,8 +86,8 @@ namespace ManimLib.Mobject.Types
         #region Colors
         public override Mobject InitColors()
         {
-            SetFill(Style.FillColor != null ? Style.FillColor : new Color[] { Color }, Style.FillOpacity);
-            SetStroke(Style.StrokeColor != null ? Style.StrokeColor : new Color[] { Color }, Style.StrokeWidth, Style.StrokeOpacity);
+            SetFill(Style?.FillColor ?? (new Color[] { Color }), Style.FillOpacity);
+            SetStroke(Style?.StrokeColor ?? (new Color[] { Color }), Style.StrokeWidth, Style.StrokeOpacity);
             SetBackgroundStroke(Style.BackgroundStrokeColor, Style.BackgroundStrokeWidth, Style.BackgroundStrokeOpacity);
             SetSheen(Style.SheenFactor, Style.SheenDirection);
             return this;
@@ -154,7 +168,7 @@ namespace ManimLib.Mobject.Types
             for (int i = 0; i < currRgbas.Count; i++)
             {
                 if (color != null)
-                    currRgbas[i] = rgbas[i][0..2].Concat(currRgbas[3]).ToArray();
+                    currRgbas[i] = rgbas[i][0..3].Concat(currRgbas[3]).ToArray();
                 if (opacity.HasValue)
                     currRgbas[i][3] = rgbas[i][3];
             }
@@ -192,7 +206,9 @@ namespace ManimLib.Mobject.Types
             for (int i = 0; i < currRgbas.Count; i++)
             {
                 if (color != null)
-                    currRgbas[i] = rgbas[i][0..2].Concat(currRgbas[3]).ToArray();
+                {
+                    currRgbas[i] = rgbas[i][0..4];
+                }
                 if (opacity != null)
                     currRgbas[i][3] = rgbas[i][3];
             }
@@ -522,7 +538,7 @@ namespace ManimLib.Mobject.Types
         public VMobject SetAnchorsAndHandles(IList<Vector<double>> anchors1, IList<Vector<double>> handles1,
             IList<Vector<double>> anchors2, IList<Vector<double>> handles2)
         {
-            if (anchors1.Count == handles1.Count && anchors2.Count == handles2.Count && anchors1.Count == anchors2.Count)
+            if (anchors1.Count != handles1.Count || anchors2.Count != handles2.Count || anchors1.Count != anchors2.Count)
                 throw new ArgumentException("Number of anchors and handles are not equal");
             int nppcc = NPointsPerCubicCurve;
             int totalLength = nppcc * anchors1.Count;
@@ -675,12 +691,16 @@ namespace ManimLib.Mobject.Types
             foreach (double a in Utils.Iterables.LinSpace(0, 1, NPointsPerCubicCurve))
             {
                 newPoints.Add(
-                    Points.Take(Points.Count - 1).Zip(Points.Skip(1),
+                    points.Take(points.Length - 1).Zip(points.Skip(1),
                         (p1, p2) => Utils.BezierUtil.Interpolate(p1, p2, a)).ToList()
                 );
             }
             SetAnchorsAndHandles(newPoints[0], newPoints[1], newPoints[2], newPoints[3]);
             return this;
+        }
+        public VMobject SetPointsAsCorners(List<Vector<double>> points)
+        {
+            return SetPointsAsCorners(points.ToArray());
         }
 
         public VMobject SetPointsSmoothly(params Vector<double>[] points)
@@ -1207,13 +1227,21 @@ namespace ManimLib.Mobject.Types
         {
             Add(vmobjs);
         }
+        public VGroup(IList<VMobject> vmobjs) : base()
+        {
+            Add(vmobjs);
+        }
 
         public VGroup(string name = null, Color color = default, int dim = 3, Mobject target = null, params VMobject[] vmobjs)
             : base(name, color, dim, target)
         {
             Add(vmobjs);
         }
-
+        public VGroup(IList<VMobject> vmobjs, string name = null, Color color = default, int dim = 3, Mobject target = null)
+            : base(name, color, dim, target)
+        {
+            Add(vmobjs);
+        }
     }
 
     public class VectorizedPoint : VMobject

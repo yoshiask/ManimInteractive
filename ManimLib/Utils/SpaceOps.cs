@@ -324,7 +324,7 @@ namespace ManimLib.Utils
 
         public static Vector<double> GetZeroVector(int dimension)
         {
-            return NewVector(Enumerable.Range(0, dimension).Cast<double>().ToArray());
+            return Vector<double>.Build.DenseOfEnumerable((0.0).Repeat(dimension));
         }
 
         public static IEnumerable<Vector<double>> SubdivideLine(IList<Vector<double>> points, int numOfSubdivisions = 1)

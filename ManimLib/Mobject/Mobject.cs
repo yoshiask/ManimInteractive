@@ -40,6 +40,7 @@ namespace ManimLib.Mobject
             Submobjects = new List<Mobject>();
             Parents = new List<Mobject>();
             Family = new List<Mobject>() { this };
+            Dimension = dim;
             Color = color == null ? COLORS[Colors.WHITE] : color;
             if (name == null)
                 Name = this.GetType().Name;
@@ -250,10 +251,13 @@ namespace ManimLib.Mobject
         public Mobject Rotate(double angle, Vector<double> axis = null, Vector<double> aboutPoint = null, Vector<double> aboutEdge = null)
         {
             if (axis == null) axis = OUT;
+            axis = axis.SubVector(0, Dimension);
 
             Matrix<double> rotationMatrix = SpaceOps.RotationMatrix(angle, axis);
             ApplyPointFunctionAboutPoint(point => {
-                return NewVector((point.ToRowMatrix() * rotationMatrix).ToRowMajorArray());
+                return NewVector(
+                    (NewMatrix(Iterables.MakeEven(point, axis).Item1.ToArray().Reshape((1, axis.Count))) * rotationMatrix).ToRowMajorArray()
+                );
             }, aboutPoint);
 
             return this;

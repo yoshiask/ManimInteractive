@@ -111,6 +111,26 @@ namespace ManimLib
                 slice.Add(array[i, col]);
             return slice;
         }
+        /// <summary>
+        /// Slices a given <see cref="IList{T}"/>, just like <c>array[start:stop:step, col]</c>.
+        /// Note that this copies the array.
+        /// </summary>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static List<T> ComponentSlice<T>(this IList<Vector<T>> array, int col, int start = 0, int? end = null, int step = 1)
+            where T : struct, IEquatable<T>, IFormattable
+        {
+            int arrayLength = array.Count;
+            List<T> slice = new List<T>(array[0].Count);
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+
+            for (int i = start; i < end.Value; i += step)
+                slice.Add(array[i][col]);
+            return slice;
+        }
 
         /// <summary>
         /// Sets each element in a slice to the corresponding element in <paramref name="array"/>.
@@ -132,6 +152,8 @@ namespace ManimLib
             int j = 0;
             for (int i = start; i < end; i += step)
             {
+                if (j == insert.Count)
+                    break;
                 array[i] = insert[j];
                 j++;
             }
@@ -185,6 +207,33 @@ namespace ManimLib
             for (int j = start; j < end; j += step)
             {
                 array[j, col] = insert[i];
+                i++;
+            }
+        }
+        /// <summary>
+        /// Sets each element in a slice of a row to the corresponding element in <paramref name="array"/>.
+        /// Equivalent to <c>array[start:stop:step, col] = insert</c>.
+        /// Functionally identical to <see cref="SetColumnSlice{T}(T[,], IList{T}, int, int, int?, int)"/>,
+        /// but modifies <paramref name="array"/> instead of creating a new <see cref="List{T}"/>.
+        /// </summary>
+        /// <param name="array">The array to set a slice from</param>
+        /// <param name="insert">The array to pull set elements from.</param>
+        /// <param name="start">Inclusive start index</param>
+        /// <param name="end">Exclusive end index</param>
+        /// <param name="step">Takes every item that is <c><paramref name="start"/>+k*<paramref name="step"/> lessthan <paramref name="end"/></c></param>
+        public static void ChangeComponentSlice<T>(this IList<Vector<T>> array, IList<T> insert, int col, int start = 0, int? end = null, int step = 1)
+            where T : struct, IEquatable<T>, IFormattable
+        {
+            int arrayLength = array.Count;
+            // This is to allow negative indexes to work as they might in Python
+            end = WrapEndIndex(end, arrayLength);
+            start = WrapStartIndex(start, arrayLength);
+            col = WrapStartIndex(col, array[0].Count);
+
+            int i = 0;
+            for (int j = start; j < end; j += step)
+            {
+                array[j][col] = insert[i];
                 i++;
             }
         }
@@ -341,7 +390,7 @@ namespace ManimLib
             int length = repeat + 1;
             List<T> output = new List<T>(length);
             for (int i = 0; i < length; i++)
-                output[i] = item;
+                output.Add(item);
             return output;
         }
 

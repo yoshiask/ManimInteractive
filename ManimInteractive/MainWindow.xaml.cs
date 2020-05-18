@@ -24,6 +24,10 @@ using Microsoft.Scripting.Hosting;
 using Microsoft.Win32;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using ManimLib;
+using MathNet.Numerics.LinearAlgebra;
+using static ManimLib.Constants;
+using Colors = ManimLib.Constants.Colors;
+using ManimLib.Mobject.Types;
 
 namespace ManimInteractive
 {
@@ -651,12 +655,12 @@ namespace ManimInteractive
             if (String.IsNullOrWhiteSpace(ManimHelper.ManimDirectory))
             {
                 ManimLocationBox.Text = "Manim not found";
-                ManimLocationBox.Foreground = new SolidColorBrush(Colors.Red);
+                ManimLocationBox.Foreground = new SolidColorBrush(System.Windows.Media.Colors.Red);
             }
             else
             {
                 ManimLocationBox.Text = ManimHelper.ManimDirectory;
-                ManimLocationBox.Foreground = new SolidColorBrush(Colors.White);
+                ManimLocationBox.Foreground = new SolidColorBrush(System.Windows.Media.Colors.White);
             }
         }
         #endregion
@@ -786,6 +790,53 @@ namespace ManimInteractive
 
                 [DllImport("uxtheme.dll", EntryPoint = "#100", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Auto)]
                 public static extern IntPtr GetImmersiveColorNamedTypeByIndex(UInt32 index);
+            }
+        }
+
+        private void NewSvgButton_Click(object sender, RoutedEventArgs e)
+        {
+            var mobj = new ManimLib.Mobject.Svg.SvgMobject(@"C:\Users\jjask\Pictures\Icons\SVG\Windows 10\Accept.svg");
+            mobj.GeneratePoints();
+
+            foreach (VMobject vmobj in mobj.Submobjects)
+            {
+                var path = new System.Windows.Shapes.Path();
+                Point start = new Point(mobj.Points[0][0], mobj.Points[0][1]);
+                List<LineSegment> segments = new List<LineSegment>();
+                for (int i = 1; i < mobj.Points.Count; i++)
+                {
+                    var seg = new LineSegment(
+                        new Point(mobj.Points[i][0], mobj.Points[i][1]),
+                        true
+                    );
+                    segments.Add(seg);
+                }
+                path.Data = new PathGeometry(new List<PathFigure>() {
+                    new PathFigure(start, segments, true)
+                });
+
+                var border = new Border()
+                {
+                    Background = null,
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    BorderThickness = new Thickness(5),
+                    Child = path
+                };
+                var item = new ManimHelper.Mobject_Rectangle()
+                {
+                    Name = mobj.Submobjects.IndexOf(vmobj).ToString(),
+                    Children =
+                    {
+                        border
+                    },
+                    IsDraggable = true,
+                    IsHitTestVisible = true,
+                    Background = new SolidColorBrush(System.Windows.Media.Colors.Transparent),
+                    Fill = COLORS[Colors.WHITE].ToHEXString(),
+                };
+                item.SetRelativeRect(new Rect(0.5, 0.5, 0.2, 0.2));
+                DisplayCanvas.Children.Add(item);
+                Panel.SetZIndex(item, curZIndex++);
             }
         }
     }

@@ -17,9 +17,26 @@ namespace ManimLib.Utils
             }
         }
 
-        public static IEnumerable<IEnumerable<T>> AdjacentNTuples<T>(IList<T> items, int n)
+        public static List<List<T>> AdjacentNTuples<T>(IList<T> items, int n)
         {
-            throw new NotImplementedException();
+            int totalCount = items.Count + (items.Count % n);
+            List<List<T>> tuples = new List<List<T>>(totalCount / n);
+            //for (int i = 0; i < totalCount; i+=n)
+            //{
+            //    List<T> tuple = new List<T>(n);
+            //    for (int j = 0; j < n; j++)
+            //    {
+            //        if ()
+            //    }
+            //    tuples.Add(tuple);
+            //}
+            for (int i = 0; i < items.Count; i++)
+            {
+                int location = items.Count / n;
+                tuples[i / location] = new List<T>();
+                tuples[i / location][i % location] = items[i];
+            }
+            return tuples;
         }
 
         /// <summary>
